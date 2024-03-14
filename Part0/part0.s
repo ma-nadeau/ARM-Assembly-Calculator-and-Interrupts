@@ -242,9 +242,66 @@ PB_data_is_pressed:
         POP {V1-V4, LR}                 // Restore V1-V4 and LR
         BX LR                           // Return
 
+// Returns index of push buttons that have been pressed
+// No Inputs
 read_PB_edgecp_ASM: 
-    =Edgecapture
+    PUSH {V1-V4, LR}                    // Preserve values in V1-V4 and LR
+    LDR V1, =PB_ADDR                    // V1 <- 0xFF200050
+    LDRB A1, [V1, #0xC]                 // A1 <- read edge capture	register 
+    POP {V1-V4, LR}                    	// Restore values in V1-V4 and LR
+	BX LR                               // Return
+
+// Returns #0x00000001 if PB has be pressed and released
+// Inputs: A1 <- Push button index
+PB_edgecp_is_pressed_ASM:
+
+    PUSH {V1-V4, LR}                    // Preserve values in V1-V4 and LR
+    LDR V1, =PB_ADDR                    // V1 <- 0xFF200050
     
+    PUSH {A1}                           // Preseve index to verify on stack
+    BL read_PB_edgecp_ASM               // A1 <- Index of Push buttons that have pressed a released
+    MOV A2, A1                          // A2 <- A1 (Store in A2 the index of Push buttons that have pressed a released)
+    POP {A1}                            // Restore index to verify on stack
+
+    LDR V1, =PB0                        // V1 <- 0x00000001 
+    AND V2, A1, A2                      // V2 <- A1 (Index of push buttons to chekc) AND V1 (HEX0) 
+    CMP V2, V1                          // Compare V2 ( A1 and PB0 ) with PB0 (check if remains active after and)
+    BEQ PB_pressed_released_done        // If Equal, return #0x00000001
+
+    LDR V1, =PB1                        // V1 <- 0x00000002 
+    AND V2, A1, A2                      // V2 <- A1 (Index of push buttons to chekc) AND V1 (HEX0) 
+    CMP V2, V1                          // Compare V2 ( A1 and PB0 ) with PB0 (check if remains active after and)
+    BEQ PB_pressed_released_done        // If Equal, return #0x00000001
+    
+    LDR V1, =PB2                        // V1 <- 0x00000004
+    AND V2, A1, A2                      // V2 <- A1 (Index of push buttons to chekc) AND V1 (HEX0) 
+    CMP V2, V1                          // Compare V2 ( A1 and PB0 ) with PB0 (check if remains active after and)
+    BEQ PB_pressed_released_done        // If Equal, return #0x00000001
+
+    LDR V1, =PB3                        // V1 <- 0x00000008 
+    AND V2, A1, A2                      // V2 <- A1 (Index of push buttons to chekc) AND V1 (HEX0) 
+    CMP V2, V1                          // Compare V2 ( A1 and PB0 ) with PB0 (check if remains active after and)
+    BEQ PB_pressed_released_done        // If Equal, return #0x00000001
+
+    // If none are equal, return A1 <- #0x00000000
+    MOV A1, #0x00000000             // A1 <- #0x00000001
+    POP {V1-V4, LR}                 // Restore values in V1-V4 and LR
+    BX LR                           // Return
+
+    // Returns #0x00000001 into A1 when PB is pressed
+    PB_pressed_released_done: 
+        MOV A1, #0x00000001             // A1 <- #0x00000001
+        POP {V1-V4, LR}                 // Restore values in V1-V4 and LR
+        BX LR                           // Return
+
+// Takes no input, Clear the edgecapture register
+PB_clear_edgecp_ASM:
+    PUSH {V1-V4, LR}                    // Preserve values in V1-V4 and LR
+    LDR V1, =PB_ADDR                    // V1 <- 0xFF200050
+    LDRB A1, [V1, #0xC]                 // A1 <- read edge capture register
+    STR A1, [V1, #0xC]                 // Clear the edge capture register
+    POP {V1-V4, LR}                    	// Restore values in V1-V4 and LR
+	BX LR                               // Return
 
 
 
@@ -261,8 +318,13 @@ infinite_loop:
     //BL HEX_flood_ASM
 	//MOV A2 , #4
 	//BL HEX_write_ASM
-	BL read_PB_data_ASM
-    MOV A2, #2
-    BL PB_data_is_pressed
+	//BL read_PB_data_ASM
+    MOV A1, #2
+    // BL PB_data_is_pressed
+    BL read_PB_edgecp_ASM
+	// BL PB_edgecp_is_pressed_ASM
+    BL PB_clear_edgecp_ASM
+	
+	
 	
     B infinite_loop                     // Infinite Loop
