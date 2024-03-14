@@ -18,6 +18,8 @@ write_LEDs_ASM:
     STR A1, [A2]                        // update LED state with the contents of A1
     BX LR
 
+
+
 // Values of HEX 
 HEX0 = 0x00000001
 HEX1 = 0x00000002
