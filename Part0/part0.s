@@ -299,9 +299,41 @@ PB_clear_edgecp_ASM:
     PUSH {V1-V4, LR}                    // Preserve values in V1-V4 and LR
     LDR V1, =PB_ADDR                    // V1 <- 0xFF200050
     LDRB A1, [V1, #0xC]                 // A1 <- read edge capture register
-    STR A1, [V1, #0xC]                 // Clear the edge capture register
+    STR A1, [V1, #0xC]                  // Clear the edge capture register
     POP {V1-V4, LR}                    	// Restore values in V1-V4 and LR
 	BX LR                               // Return
+
+// Inputs: Push button index (PB0 -> A1 = 0; PB1 -> A1 = 1; ..., PB3 -> A1 = 3)
+// It enables the interrupt function for the corresponding pushbuttons by 
+// setting the interrupt mask bits to '1'.
+// No Return
+enable_PB_INT_ASM:
+
+    PUSH {V1-V4, LR}                    // Preserve values in V1-V4 and LR
+    LDR V1, =PB_ADDR                    // V1 <- 0xFF200050
+    // LDRB A2, [V1, #0x8]              // A2 <- read interrup mask register
+    ADD V1, V1, #0x8                    // Update Address to that of Mask Register
+    MOV A2, #1
+    STRB A2, [V1, A1]                    // Clear the edge capture register
+    
+    POP {V1-V4, LR}
+    BX LR
+
+// Inputs: Push button index (PB0 -> A1 = 0; PB1 -> A1 = 1; ..., PB3 -> A1 = 3)
+// It disable the interrupt function for the corresponding pushbuttons by 
+// setting the interrupt mask bits to '0'.
+// No Return
+disable_PB_INT_ASM:
+
+    PUSH {V1-V4, LR}                    // Preserve values in V1-V4 and LR
+    LDR V1, =PB_ADDR                    // V1 <- 0xFF200050
+    // LDRB A2, [V1, #0x8]              // A2 <- read interrup mask register
+    ADD V1, V1, #0x8                    // Update Address to that of Mask Register
+    MOV A2, #0
+    STRB A2, [V1, A1]                    // Clear the edge capture register
+    
+    POP {V1-V4, LR}
+    BX LR
 
 
 
@@ -321,9 +353,10 @@ infinite_loop:
 	//BL read_PB_data_ASM
     MOV A1, #2
     // BL PB_data_is_pressed
-    BL read_PB_edgecp_ASM
+    //BL read_PB_edgecp_ASM
 	// BL PB_edgecp_is_pressed_ASM
-    BL PB_clear_edgecp_ASM
+    //BL PB_clear_edgecp_ASM
+    BL enable_PB_INT_ASM:
 	
 	
 	
