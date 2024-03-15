@@ -27,7 +27,7 @@ PB3 = 0x00000008
 .equ PB_ADDR, 0xFF200050                // Address of Push Button
 
 Display: 
-    .word 0x003F, 0x0006, 0x005B, 0x004F,0x0066, 0x006D, 0x007D, 0x0007,0x007F, 0x0067, 0x0077, 0x007C,0x0039, 0x005E, 0x0079, 0x0071
+    .word 0x3F, 0x06, 0x5B, 0x4F,0x66, 0x6D, 0x7D, 0x07,0x7F, 0x67, 0x77, 0x7C,0x39, 0x5E, 0x79, 0x71
 
 
 
@@ -284,10 +284,10 @@ HEX_write_ASM:
 
 
 _start: 
-    //BL clear                            // At Startup, r = 0 and HEX displays show '00000'
+    BL clearInitial                       // At Startup, r = 0 and HEX displays show '00000'
 loop: 
-    //BL read_slider_switches_ASM         // Branch to function to read state of slider switches and return it in A1
-	//BL write_LEDs_ASM                   // Write content of A1 to LEDs
+    BL read_slider_switches_ASM         // Branch to function to read state of slider switches and return it in A1
+	BL write_LEDs_ASM                   // Write content of A1 to LEDs
     //LDR A1, =upperBound
 	//ADD A1, A1, #1
     //BL checkResultOverflow              // Check result for overflow
