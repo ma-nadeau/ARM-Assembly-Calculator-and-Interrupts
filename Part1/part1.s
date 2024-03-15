@@ -52,8 +52,9 @@ write_LEDs_ASM:
 // Input: A1 <- Containing the current result 
 // Sets the 7-segment display of 'OVRFLO'
 overflow: 
-    PUSH {A1, V1-V4, LR}                // Preserve values in A1 and V1-V4 and LR 
-    
+    PUSH {A1, V1-V5, LR}                // Preserve values in A1 and V1-V4 and LR 
+    MOV V5, #1
+	STR V5, overflowDetected
     LDR V1, =HEX0to3                    // Load the address of the first four HEX displays
     LDR A1, =0x7771383f                 // A1 <- 0x7771383f (Corresponding to 'RFLO' in the hex display)
     STR A1, [V1]                        // Set 0x7771383f at address V1 (=HEX0to3)
@@ -62,26 +63,28 @@ overflow:
     LDR A1, =0x00003f3e                 // A1 <- 0x00003f3e (Corresponding to 'OV' in the hex display)  
     STR A1, [V1]                        // Set 0x00003f3e at address V1 (=HEX4to5)
     
-    POP {A1,V1-V4, LR}                  // Restores values in A1 and V1-V4 and LR
-	POP {V1, LR}						// Restore values of V1 and LR  (from checkResultOverflow)
+    POP {A1,V1-V5, LR}                  // Restores values in A1 and V1-V4 and LR
+	POP {V1-V2, LR}						// Restore values of V1 and LR  (from checkResultOverflow)
 	BX LR                               // Return
 
 
 // Inputs: A1 <- Contains the current result
 checkResultOverflow:
-    PUSH {V1, LR}						// Preserve values of V1 and LR 
-
+    PUSH {V1-V2, LR}						// Preserve values of V1 and LR 
     // check upper-bound
     LDR V1, =upperBound                 // Loads the upperbound value into V1             
     CMP A1, V1                          // Compare current result with upperbound
-    BGT overflow                        // If overflow, Branch to overflow method
+    MOV V2, #0
+	STRLE V2, overflowDetected
+	BGT overflow                        // If overflow, Branch to overflow method
     
     // check lower-bound
     LDR V1, =lowerBound                 // Loads the lowerbound value into V1
     CMP A1, V1                          // Compare current result with lowerbound
     BLT overflow                        // If overflow, Branch to overflow method
-    POP {V1, LR}						// Restore values of V1 and LR 
-    BX LR                               // Return
+    STRGE V2, overflowDetected
+	POP {V1-V2, LR}						// Restore values of V1 and LR  
+	BX LR                               // Return
 
 // Inputs: A1 <- Contains the current result
 // Add negative to 6th display
@@ -101,11 +104,13 @@ checkResultForNegative:
 
 currentResult: .word 0
 hasStarted: .word 0
+overflowDetected: .word 0
+
 
 // No Inputs
 // Returns: A2 <- SW0-SW3  and  A3 <- SW4-SW7
 getTwoNumbers:
-    PUSH {V1-V3, LR}				    // Preserve values of V1-V2 and LR 
+    PUSH {V1-V4, LR}				    // Preserve values of V1-V2 and LR 
 
     LDR V2, =SW_ADDR                    // load the address of slider switch state
     LDR A2, [V2]                        // read slider switch state
@@ -117,13 +122,15 @@ getTwoNumbers:
     
 	LDR V3, hasStarted
 	CMP V3, #0
-    MOVNE A3, A1
+	MOVNE V4, A2
+    MOVNE A2, A1
+	MOVNE A3, V4
 	
     // SW4-SW5
     ANDEQ A3, V1, #0xF0                   // Extract the higher 4 bits and store them in A3
     LSREQ A3, A3, #4                      // Delete '0000' of the higher numbers
 
-    POP {V1-V3, LR}                     // Restaure values of V1-V2 and LR 
+    POP {V1-V4, LR}                     // Restaure values of V1-V2 and LR 
     BX LR                               // Return  
 
 read_PB_edgecp_ASM: 
@@ -198,6 +205,7 @@ clearInitial:
         MOV A1, #0                      // Resets Result to 0
     	STR A1, currentResult
 		STR A1, hasStarted
+		STR A1, overflowDetected
         BL PB_clear_edgecp_ASM          // Clear Edge Capture Register
 
         POP {V1-V2, LR}                 // Restores values in V1-V2 and LR 
@@ -307,15 +315,20 @@ convertToBCD:
 // Returns: Nothing
 HEX_write_ASM:
 
-	PUSH {V5-V7, LR}                      // Preserves V5 and LR               
+	PUSH {V5-V8, LR}                      // Preserves V5 and LR               
     LDR V5, =HEX0to3                      // V5 <- Address of HEX0to3
     
 	STR A1, currentResult
-	
+	PUSH {A1}
     BL checkResultOverflow              // Check result for overflow
-   	PUSH {A1}
+   	POP {A1}
+	LDR V8, overflowDetected
+	CMP V8, #0
+	BGT skipWrite
+	
+	
     BL checkResultForNegative           // Check for negative result
-    POP {A1}
+    
 	BL convertToBCD
     
     LDR V6, =0x0000F                      // V6 <- 0x0000F
@@ -372,8 +385,10 @@ HEX_write_ASM:
     BL convert_decimal_to_display         // A1 <- Results converted to 7-Segment Display    
     STRB A1, [V5]                         // Stores A1 (Results converted to 7-Segment Display) in V5 (Address of HEX0to3)
 	POP {A1}
+	
+	skipWrite:
     LDR A1, currentResult
-	POP {V5-V7, LR}                       // Restore V5 and LR 
+	POP {V5-V8, LR}                       // Restore V5 and LR 
     BX LR                                 // Return from the function
 
 
@@ -382,11 +397,6 @@ _start:
 loop: 
     BL read_slider_switches_ASM         // Branch to function to read state of slider switches and return it in A1
 	BL write_LEDs_ASM                   // Write content of A1 to LEDs
-    //LDR A1, =upperBound
-	//ADD A1, A1, #1
-    //BL checkResultOverflow              // Check result for overflow
-    //TODO: Conflict to with negative oveflow
-    //BL checkResultForNegative           // Check for negative result
     
     BL getTwoNumbers
     BL PB_pressed_released
