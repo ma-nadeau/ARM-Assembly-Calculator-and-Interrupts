@@ -2,6 +2,7 @@
 
 
 // Values of HEX 
+
 HEX0 = 0x00000001
 HEX1 = 0x00000002
 HEX2 = 0x00000004
@@ -85,23 +86,26 @@ checkResultOverflow:
 // Inputs: A1 <- Contains the current result
 // Add negative to 6th display
 checkResultForNegative:
-    PUSH {V1-V3, LR}				    // Preserve values of V1-V3 and LR 
-
+    PUSH {V1-V4, LR}				    // Preserve values of V1-V3 and LR 
+	MOV V4, #-1							// TODO: STore original value
     // check upper-bound
-    LDR V1, =#0x40                       // Loads '-' into V1 
+    LDR V1, =#0x40                      // Loads '-' into V1 
     MOV V2, #0                          // Loads Imm 0 into V2 
     LDR V3, =HEX4to5                    // Loads the Address of 4th 7-segment display         
     CMP A1, V2                          // Compare current result with 0
-    STRLEB V1, [V3,#1]                  // Put V1 ('-') into HEX4 + 1 (=> HEX 5)  
-    POP {V1-V3, LR}						// Restore values of V1-V3 and LR 
+    STRLTB V1, [V3,#1]                  // Put V1 ('-') into HEX4 + 1 (=> HEX 5)
+    
+	MUL A1, A1, V4 
+    POP {V1-V4, LR}						// Restore values of V1-V3 and LR 
     BX LR                               // Return
 
-
+currentResult: .word 0
+hasStarted: .word 0
 
 // No Inputs
 // Returns: A2 <- SW0-SW3  and  A3 <- SW4-SW7
 getTwoNumbers:
-    PUSH {V1-V2, LR}				    // Preserve values of V1-V2 and LR 
+    PUSH {V1-V3, LR}				    // Preserve values of V1-V2 and LR 
 
     LDR V2, =SW_ADDR                    // load the address of slider switch state
     LDR A2, [V2]                        // read slider switch state
@@ -109,12 +113,17 @@ getTwoNumbers:
     
     // SW0 - SW3
     AND A2, A2, #0x0F                   // Extract the lower 4 bits and store them in A2
-
+    LDR A1, currentResult
+    
+	LDR V3, hasStarted
+	CMP V3, #0
+    MOVNE A3, A1
+	
     // SW4-SW5
-    AND A3, V1, #0xF0                   // Extract the higher 4 bits and store them in A3
-    LSR A3, A3, #4                      // Delete '0000' of the higher numbers
+    ANDEQ A3, V1, #0xF0                   // Extract the higher 4 bits and store them in A3
+    LSREQ A3, A3, #4                      // Delete '0000' of the higher numbers
 
-    POP {V1-V2, LR}                     // Restaure values of V1-V2 and LR 
+    POP {V1-V3, LR}                     // Restaure values of V1-V2 and LR 
     BX LR                               // Return  
 
 read_PB_edgecp_ASM: 
@@ -187,7 +196,8 @@ clearInitial:
         STR V2, [V1]                    // Write 0x0000003f to address V1 (=HEX4to5)
     
         MOV A1, #0                      // Resets Result to 0
-    
+    	STR A1, currentResult
+		STR A1, hasStarted
         BL PB_clear_edgecp_ASM          // Clear Edge Capture Register
 
         POP {V1-V2, LR}                 // Restores values in V1-V2 and LR 
@@ -199,9 +209,13 @@ multiplication:
     MUL A1, A2, A3                       // A1 <- A2 (SWO-SW3) * A3 (SW4-SW7)
 
     BL PB_clear_edgecp_ASM               // Clear Edge Capture Register
-
+	PUSH {V4}
+	MOV V4, #1
+	STR V4, hasStarted
+	POP {V4}
+	
 	PUSH {A1}                            // Preserves A1
-    BL HEX_write_ASM                     // Write to Memory (7-Segment display) the content of A1
+	BL HEX_write_ASM                     // Write to Memory (7-Segment display) the content of A1
     POP {A1}                             // Restores A1
 
     POP {V1-V2, LR}                      // Restores values in V1-V2 and LR
@@ -213,6 +227,12 @@ substraction:
 
     SUB A1, A2, A3                       //  A1 <- A2 (SWO-SW3) - A3 (SW4-SW7)
     BL PB_clear_edgecp_ASM               // Clear Edge Capture Register
+	
+	PUSH {V4}
+	MOV V4, #1
+	STR V4, hasStarted
+	POP {V4}
+	
 	PUSH {A1}                            // Preserves A1
     BL HEX_write_ASM                     // Write to Memory (7-Segment display) the content of A1
     POP {A1}                             // Restores A1
@@ -225,7 +245,13 @@ addition:
     ADD A1, A2, A3                       //  A1 <- A2 (SWO-SW3) + A3 (SW4-SW7)
     BL PB_clear_edgecp_ASM               // Clear Edge Capture Register
 	PUSH {A1}                            // Preserves A1
-    BL HEX_write_ASM                     // Write to Memory (7-Segment display) the content of A1
+    
+	PUSH {V4}
+	MOV V4, #1
+	STR V4, hasStarted
+	POP {V4}
+	
+	BL HEX_write_ASM                     // Write to Memory (7-Segment display) the content of A1
     POP {A1}                             // Restores A1
     POP {V1-V2, LR}                      // Restores values in V1-V2 and LR
     BX LR                                // Returns
@@ -235,18 +261,62 @@ addition:
 // Inputs: A1 containing the current result 
 // Returns:  A1 converted to hexa
 convert_decimal_to_display: 
-	PUSH {V3, LR}                         // Preserves V3 and LR
+	PUSH {V3-V4, LR}                         // Preserves V3 and LR
     LDR V3, =Display                      // V3 <- Addres of =Display
-	LDR A1, [V3, A1]                      // A1 <- Addres of =Display + Offset (A1)        
-    POP {V3, LR}                          // Restores V3 and LR
+	
+	MOV V4, A1
+	LSL V4, V4, #2
+	LDR A1, [V3, V4]                      // A1 <- Addres of =Display + Offset (A1)        
+    LSR V4, V4, #2
+	POP {V3-V4, LR}                          // Restores V3 and LR
     BX LR                                 // Return
 
+convertToBCD: 
+    PUSH {V1-V8, LR}                      // Preserves V3 and LR
+    MOV V7, #0                         // V7 <- Counter = 0
+	MOV V8, #0                         // Holds Result
+	MOV V2, A1
+    loopBCD:
+	    CMP V2, #0                     // Compare Quotient with 0
+	    BEQ	stop_loop                  // Stop Loop when Quotient == 0
+        
+        LDR A4, =0xccd                 // A4 <- 0xccd
+
+        MUL V1, V2, A4                 // V1 <- V2 (Quotient) * A4 (0xccd) 
+        LSR V1, V1, #15                // V1 <- V1 << 15                 
+	    MOV V3, #10                    // V3 <- 10
+	    MUL V4, V1, V3                 // V4 <- V1 * V3 (10)
+	    SUB V5, V2, V4
+	    MOV V2, V1
+    
+	    LSL V6, V7, #2
+	    LSL V6, V5, V6
+		//LSR V6, V7, #3
+	    ORR V8, V8, V6
+	    
+		ADD V7, V7, #1
+	B loopBCD
+    stop_loop: 
+	    
+	    MOV A1, V8
+        POP {V1-V8, LR}
+        BX LR
+
+    
 // Inputs: A1 containing the value of to write 
 // Returns: Nothing
 HEX_write_ASM:
 
 	PUSH {V5-V7, LR}                      // Preserves V5 and LR               
     LDR V5, =HEX0to3                      // V5 <- Address of HEX0to3
+    
+	STR A1, currentResult
+	
+    BL checkResultOverflow              // Check result for overflow
+   	PUSH {A1}
+    BL checkResultForNegative           // Check for negative result
+    POP {A1}
+	BL convertToBCD
     
     LDR V6, =0x0000F                      // V6 <- 0x0000F
     AND V7, A1, V6                        // V7 <- Only first Byte  
@@ -258,9 +328,10 @@ HEX_write_ASM:
 	POP {A1}
     
     ADD V5, V5, #1                        // V5 <- Address of HEX0to3 + 1
-    LSL V6, V6, #1                        // V6 <- 0x0000F0
+    
+	LSL V6, V6, #4                        // V6 <- 0x0000F0
     AND V7, A1, V6                        // V7 <- Take Second Byte 
-    LSR V7, V7, #1                        // Delete 0 on the right
+    LSR V7, V7, #4
     
     PUSH {A1}                             // Preserve A1
     MOV A1,V7                             // 
@@ -269,9 +340,22 @@ HEX_write_ASM:
 	POP {A1}
 
     ADD V5, V5, #1                        // V5 <- Address of HEX0to3 + 2
-    LSL V6, V6, #1 
+    
+	LSL V6, V6, #4 
     AND V7, A1, V6                        // V7 <- Only first Byte 
-    LSR V7, V7, #2                        // V6 <- 0x000F00
+    LSR V7, V7, #8
+
+    PUSH {A1}
+    MOV A1,V7
+    BL convert_decimal_to_display         // A1 <- Results converted to 7-Segment Display    
+    STRB A1, [V5]                         // Stores A1 (Results converted to 7-Segment Display) in V5 (Address of HEX0to3)
+	POP {A1}
+	
+	ADD V5, V5, #1                        // V5 <- Address of HEX0to3 + 2
+    
+	LSL V6, V6, #4 
+    AND V7, A1, V6                        // V7 <- Only first Byte 
+    LSR V7, V7, #12
 
     PUSH {A1}
     MOV A1,V7
@@ -279,8 +363,18 @@ HEX_write_ASM:
     STRB A1, [V5]                         // Stores A1 (Results converted to 7-Segment Display) in V5 (Address of HEX0to3)
 	POP {A1}
 
-    POP {V5-V7, LR}                        // Restore V5 and LR 
-    BX LR                               // Return from the function
+	LDR V5, =HEX4to5                      // V5 <- Address of HEX0to3
+    LSL V6, V6, #4
+	AND V7, A1, V6                        // V7 <- Only first Byte  
+	LSR V7, V7, #16
+    PUSH {A1}
+    MOV A1, V7
+    BL convert_decimal_to_display         // A1 <- Results converted to 7-Segment Display    
+    STRB A1, [V5]                         // Stores A1 (Results converted to 7-Segment Display) in V5 (Address of HEX0to3)
+	POP {A1}
+    LDR A1, currentResult
+	POP {V5-V7, LR}                       // Restore V5 and LR 
+    BX LR                                 // Return from the function
 
 
 _start: 
@@ -293,6 +387,7 @@ loop:
     //BL checkResultOverflow              // Check result for overflow
     //TODO: Conflict to with negative oveflow
     //BL checkResultForNegative           // Check for negative result
+    
     BL getTwoNumbers
     BL PB_pressed_released
 	
