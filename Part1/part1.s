@@ -56,11 +56,11 @@ overflow:
     MOV V5, #1
 	STR V5, overflowDetected
     LDR V1, =HEX0to3                    // Load the address of the first four HEX displays
-    LDR A1, =0x7771383f                 // A1 <- 0x7771383f (Corresponding to 'RFLO' in the hex display)
+    LDR A1, =0x5071383f                 // A1 <- 0x7771383f (Corresponding to 'RFLO' in the hex display)
     STR A1, [V1]                        // Set 0x7771383f at address V1 (=HEX0to3)
 	
     LDR V1, =HEX4to5                    // Load the address of the last two HEX displays        
-    LDR A1, =0x00003f3e                 // A1 <- 0x00003f3e (Corresponding to 'OV' in the hex display)  
+    LDR A1, =0x00003f1c                 // A1 <- 0x00003f3e (Corresponding to 'OV' in the hex display)  
     STR A1, [V1]                        // Set 0x00003f3e at address V1 (=HEX4to5)
     
     POP {A1,V1-V5, LR}                  // Restores values in A1 and V1-V4 and LR
