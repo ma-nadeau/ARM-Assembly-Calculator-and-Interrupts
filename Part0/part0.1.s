@@ -18,8 +18,6 @@ write_LEDs_ASM:
     STR A1, [A2]                        // update LED state with the contents of A1
     BX LR
 
-    
-
     BX LR              // Return from the function
 
 _start: 
