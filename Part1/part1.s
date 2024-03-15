@@ -97,8 +97,8 @@ checkResultForNegative:
     LDR V3, =HEX4to5                    // Loads the Address of 4th 7-segment display         
     CMP A1, V2                          // Compare current result with 0
     STRLTB V1, [V3,#1]                  // Put V1 ('-') into HEX4 + 1 (=> HEX 5)
-    
-	MUL A1, A1, V4 
+	MULLT A1, A1, V4
+	STRGEB V2, [V3,#1] 
     POP {V1-V4, LR}						// Restore values of V1-V3 and LR 
     BX LR                               // Return
 
@@ -319,6 +319,7 @@ HEX_write_ASM:
     LDR V5, =HEX0to3                      // V5 <- Address of HEX0to3
     
 	STR A1, currentResult
+	
 	PUSH {A1}
     BL checkResultOverflow              // Check result for overflow
    	POP {A1}
