@@ -70,7 +70,7 @@ overflow:
 
 // Inputs: A1 <- Contains the current result
 checkResultOverflow:
-    PUSH {V1-V2, LR}						// Preserve values of V1 and LR 
+    PUSH {V1-V2, LR}					// Preserve values of V1 and LR 
     // check upper-bound
     LDR V1, =upperBound                 // Loads the upperbound value into V1             
     CMP A1, V1                          // Compare current result with upperbound
@@ -90,14 +90,14 @@ checkResultOverflow:
 // Add negative to 6th display
 checkResultForNegative:
     PUSH {V1-V4, LR}				    // Preserve values of V1-V3 and LR 
-	MOV V4, #-1							// TODO: STore original value
+	MOV V4, #-1							
     // check upper-bound
     LDR V1, =#0x40                      // Loads '-' into V1 
     MOV V2, #0                          // Loads Imm 0 into V2 
     LDR V3, =HEX4to5                    // Loads the Address of 4th 7-segment display         
     CMP A1, V2                          // Compare current result with 0
-    STRLTB V1, [V3,#1]                  // Put V1 ('-') into HEX4 + 1 (=> HEX 5)
-	MULLT A1, A1, V4
+    STRLTB V1, [V3,#1]                  // Put V1 ('-') into HEX4 + 1 (=> HEX 5) if A1 < V2
+	MULLT A1, A1, V4                    // 
 	STRGEB V2, [V3,#1] 
     POP {V1-V4, LR}						// Restore values of V1-V3 and LR 
     BX LR                               // Return
