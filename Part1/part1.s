@@ -279,6 +279,23 @@ convert_decimal_to_display:
 	POP {V3-V4, LR}                          // Restores V3 and LR
     BX LR                                 // Return
 
+divideByTen: 
+	PUSH {V1-V2, LR}
+	MOV V1, #0 							// Counter V1 <- 0
+	
+	loopDivideByTen: 
+		CMP A1, #10 
+		BLT end_loopDivideByTen
+		
+		SUB A1, A1, #10
+		ADD V1, V1, #1
+		B loopDivideByTen
+		
+	end_loopDivideByTen:
+		MOV A1, V1						// Move the Quotient to A1
+		POP {V1-V2, LR}
+		BX LR
+		
 convertToBCD: 
     PUSH {V1-V8, LR}                      // Preserves V3 and LR
     MOV V7, #0                         // V7 <- Counter = 0
@@ -288,10 +305,15 @@ convertToBCD:
 	    CMP V2, #0                     // Compare Quotient with 0
 	    BEQ	stop_loop                  // Stop Loop when Quotient == 0
         
-        LDR A4, =0xccd                 // A4 <- 0xccd
-
-        MUL V1, V2, A4                 // V1 <- V2 (Quotient) * A4 (0xccd) 
-        LSR V1, V1, #15                // V1 <- V1 << 15                 
+        //LDR A4, =0xCCCD                 // A4 <- 0xccd
+        //MUL V1, V2, A4                 // V1 <- V2 (Quotient) * A4 (0xccd) 
+        //LSR V1, V1, #19                // V1 <- V1 << 15 
+		
+		BL divideByTen		
+		MOV V1, A1
+		
+		
+		
 	    MOV V3, #10                    // V3 <- 10
 	    MUL V4, V1, V3                 // V4 <- V1 * V3 (10)
 	    SUB V5, V2, V4
