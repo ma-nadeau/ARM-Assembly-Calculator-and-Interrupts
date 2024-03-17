@@ -14,7 +14,6 @@ B SERVICE_FIQ       // FIQ interrupt vector
 .text
 .global _start
 
-
 LOAD_register_addr = 0xFFFEC600
 COUNTER_register_addr = 0xFFFEC604
 CONTROL_register_addr = 0xFFFEC608
@@ -30,29 +29,20 @@ currentResult: .word 0
 Display:  .word 0x3F, 0x06, 0x5B, 0x4F,0x66, 0x6D, 0x7D, 0x07,0x7F, 0x67, 0x77, 0x7C,0x39, 0x5E, 0x79, 0x71
 
 
-// Value of push buttons
-PB0 = 0x00000001
-PB1 = 0x00000002
-PB2 = 0x00000004
-PB3 = 0x00000008
+// Write to 7-segment
+// Inputs: A1 containing the current result 
+// Returns:  A1 converted to hexa
+convert_decimal_to_display: 
+	PUSH {V3-V4, LR}                         // Preserves V3 and LR
+    LDR V3, =Display                      // V3 <- Addres of =Display
+	
+	MOV V4, A1
+	LSL V4, V4, #2
+	LDR A1, [V3, V4]                      // A1 <- Addres of =Display + Offset (A1)        
+    LSR V4, V4, #2
+	POP {V3-V4, LR}                          // Restores V3 and LR
+    BX LR                                 // Return
 
-.equ PB_ADDR, 0xFF200050                // Address of Push Button
-
-// Inputs: Push button index (PB0 -> A1 = 0; PB1 -> A1 = 1; ..., PB3 -> A1 = 3)
-// It enables the interrupt function for the corresponding pushbuttons by 
-// setting the interrupt mask bits to '1'.
-// No Return
-enable_PB_INT_ASM:
-
-    PUSH {V1-V4, LR}                    // Preserve values in V1-V4 and LR
-    LDR V1, =PB_ADDR                    // V1 <- 0xFF200050
-    // LDRB A2, [V1, #0x8]              // A2 <- read interrup mask register
-    ADD V1, V1, #0x8                    // Update Address to that of Mask Register
-    MOV A2, #1
-    STRB A2, [V1, A1]                   // Clear the edge capture register
-    
-    POP {V1-V4, LR}
-    BX LR
 
 // A1 <- Initial Count Value
 // A2 <- Configuration Bit 
@@ -71,37 +61,59 @@ ARM_TIM_config_ASM:
     POP {V1-V3, LR}
     BX LR
 
+// No inputs
+// Returns the value of the CONTORL register
+ARM_TIM_read_INT_ASM:
+    PUSH {V1, LR}
+
+    LDR V1, =INTERUPT_register_addr         // Loads address of v1 (Interupt register)  
+    LDR A1, [V1]                            // Loads the F value into the A1 register
+
+    POP {V1, LR}
+    BX LR
+
+ARM_TIM_clear_INT_ASM:
+    PUSH {V1-V2, LR}
+    
+    LDR V2, =0x00000001                     // Values to clear interrupt status registe
+    LDR V1, =INTERUPT_register_addr         // Loads address of v1 (Interupt register)  
+    STR V2, [V1]                            // F bit cleared to 0 by writing a 0x00000001 to the interrupt status register
+
+    POP {V1-V2, LR}
+    BX LR
+HEX_write_ASM:
+	PUSH {V5, LR} 
+	LDR V5, =HEX0to3
+	BL convert_decimal_to_display			// Convert A1 to 7-segment display value
+	STRB A1, [V5]                         	// Stores A1 (Results converted to 7-Segment Display) in V5 (Address of HEX0to3)
+	POP {V5, LR}
+	BX LR
 
 
 
 _start:
     
     /* Set up stack pointers for IRQ and SVC processor modes */
-    MOV R1, #0b11010010                     // interrupts masked, MODE = IRQ
-    MSR CPSR_c, R1                          // change to IRQ mode
-    LDR SP, =0xFFFFFFFF - 3                 // set IRQ stack to A9 on-chip memory
+    MOV R1, #0b11010010      // interrupts masked, MODE = IRQ
+    MSR CPSR_c, R1           // change to IRQ mode
+    LDR SP, =0xFFFFFFFF - 3  // set IRQ stack to A9 on-chip memory
     
     /* Change to SVC (supervisor) mode with interrupts disabled */
-    MOV R1, #0b11010011                     // interrupts masked, MODE = SVC
-    MSR CPSR, R1                            // change to supervisor mode
-    LDR SP, =0x3FFFFFFF - 3                 // set SVC stack to top of DDR3 memory
-    BL  CONFIG_GIC                          // configure the ARM GIC
+    MOV R1, #0b11010011      // interrupts masked, MODE = SVC
+    MSR CPSR, R1             // change to supervisor mode
+    LDR SP, =0x3FFFFFFF - 3  // set SVC stack to top of DDR3 memory
+    BL  CONFIG_GIC           // configure the ARM GIC
     
     // NOTE: write to the pushbutton KEY interrupt mask register
     // Or, you can call enable_PB_INT_ASM subroutine from previous task
     // to enable interrupt for ARM A9 private timer, 
     // use ARM_TIM_config_ASM subroutine
-
-    BL enable_PB_INT_ASM                    // Active interupt for pushbuttons
-
-    BL ARM_TIM_config_ASM                   // Active interupt for ARM A9 private timer
-
-    LDR R0, =0xFF200050                     // pushbutton KEY base address
-    MOV R1, #0xF                            // set interrupt mask bits
-    STR R1, [R0, #0x8]                      // interrupt mask register (base + 8)
+    LDR R0, =0xFF200050      // pushbutton KEY base address
+    MOV R1, #0xF             // set interrupt mask bits
+    STR R1, [R0, #0x8]       // interrupt mask register (base + 8)
     
     // enable IRQ interrupts in the processor
-    MOV R0, #0b01010011                     // IRQ unmasked, MODE = SVC
+    MOV R0, #0b01010011      // IRQ unmasked, MODE = SVC
     MSR CPSR_c, R0
 
 IDLE:
@@ -193,13 +205,11 @@ SERVICE_IRQ:
 /* Read the ICCIAR from the CPU Interface */
     LDR R4, =0xFFFEC100
     LDR R5, [R4, #0x0C] // read from ICCIAR
-
-    /* NOTE: Check which interrupt has occurred (check interrupt IDs)
-       Then call the corresponding ISR
-       If the ID is not recognized, branch to UNEXPECTED
-       See the assembly example provided in the DE1-SoC Computer Manual
-       on page 46 */
-    
+/* NOTE: Check which interrupt has occurred (check interrupt IDs)
+   Then call the corresponding ISR
+   If the ID is not recognized, branch to UNEXPECTED
+   See the assembly example provided in the DE1-SoC Computer Manual
+   on page 46 */
 Pushbutton_check:
     CMP R5, #73
 UNEXPECTED:
@@ -209,7 +219,7 @@ EXIT_IRQ:
 /* Write to the End of Interrupt Register (ICCEOIR) */
     STR R5, [R4, #0x10] // write to ICCEOIR
     POP {R0-R7, LR}
-    SUBS PC, LR, #4
+SUBS PC, LR, #4
 /*--- FIQ ---------------------------------------------------------*/
 SERVICE_FIQ:
     B SERVICE_FIQ

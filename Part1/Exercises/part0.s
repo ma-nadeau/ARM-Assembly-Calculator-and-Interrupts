@@ -316,7 +316,7 @@ enable_PB_INT_ASM:
     // LDRB A2, [V1, #0x8]              // A2 <- read interrup mask register
     ADD V1, V1, #0x8                    // Update Address to that of Mask Register
     MOV A2, #1
-    STRB A2, [V1, A1]                    // Clear the edge capture register
+    STRB A2, [V1, A1]                   // Clear the edge capture register
     
     POP {V1-V4, LR}
     BX LR
