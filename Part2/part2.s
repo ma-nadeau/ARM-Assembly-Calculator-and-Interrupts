@@ -48,8 +48,8 @@ enable_PB_INT_ASM:
     LDR V1, =PB_ADDR                    // V1 <- 0xFF200050
     // LDRB A2, [V1, #0x8]              // A2 <- read interrup mask register
     ADD V1, V1, #0x8                    // Update Address to that of Mask Register
-    MOV A2, #1
-    STRB A2, [V1, A1]                   // Clear the edge capture register
+   	LDR V2, =0xF
+    STRB V2, [V1]                   // Clear the edge capture register
     
     POP {V1-V4, LR}
     BX LR
@@ -96,13 +96,11 @@ _start:
 
     BL ARM_TIM_config_ASM                   // Active interupt for ARM A9 private timer
 
-    LDR R0, =0xFF200050                     // pushbutton KEY base address
-    MOV R1, #0xF                            // set interrupt mask bits
-    STR R1, [R0, #0x8]                      // interrupt mask register (base + 8)
     
     // enable IRQ interrupts in the processor
     MOV R0, #0b01010011                     // IRQ unmasked, MODE = SVC
     MSR CPSR_c, R0
+
 
 IDLE:
     B IDLE // This is where you write your main program task(s)
