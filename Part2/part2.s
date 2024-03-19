@@ -38,6 +38,13 @@ PB3 = 0x00000008
 
 .equ PB_ADDR, 0xFF200050                // Address of Push Button
 
+
+PB_int_flag: 
+    .word 0x0
+
+tim_int_flag:
+    .word   0x0
+
 // Inputs: Push button index (PB0 -> A1 = 0; PB1 -> A1 = 1; ..., PB3 -> A1 = 3)
 // It enables the interrupt function for the corresponding pushbuttons by 
 // setting the interrupt mask bits to '1'.
@@ -48,27 +55,21 @@ enable_PB_INT_ASM:
     LDR V1, =PB_ADDR                    // V1 <- 0xFF200050
     // LDRB A2, [V1, #0x8]              // A2 <- read interrup mask register
     ADD V1, V1, #0x8                    // Update Address to that of Mask Register
-   	LDR V2, =0xF
-    STRB V2, [V1]                   // Clear the edge capture register
+   	LDR V2, =0xF                         // TODO: 
+    STR V2, [V1]                       	// Clear the edge capture register
     
     POP {V1-V4, LR}
     BX LR
 
-// A1 <- Initial Count Value
-// A2 <- Configuration Bit 
+//Active Interupt for Counter
 ARM_TIM_config_ASM:
-    PUSH {V1-V3, LR}
+    PUSH {V1-V5, LR}
     
-    LDR V1, =LOAD_register_addr             // v1 <- 0xFFFEC600 (addres of Load Register)
-    LDR V2, =CONTROL_register_addr          // v2 <- 0xFFFEC608 (addr of )
+    LDR V2, =0x00000001                     // Values to clear interrupt status registe
+    LDR V1, =INTERUPT_register_addr         // Loads address of v1 (Interupt register)  
+    STR V2, [V1]
 
-    STR A1, [V1]                            // store at address v1 (Load Register) the initial count
-    
-	LDR V3, [V2]                            // V3 <- content of the control register
-    ORR V3, V3, A2                          // set bit E in control register using second argument
-    STR V3, [V2]                            // write to CONTROL register the change in the bit E
-    
-    POP {V1-V3, LR}
+    POP {V1-V5, LR}
     BX LR
 
 
@@ -115,6 +116,12 @@ CONFIG_GIC:
     MOV R0, #73            // KEY port (Interrupt ID = 73)
     MOV R1, #1             // this field is a bit-mask; bit 0 targets cpu0
     BL CONFIG_INTERRUPT
+
+
+    MOV R0, #29            // KEY port (Interrupt ID = 73)
+    MOV R1, #1             // this field is a bit-mask; bit 0 targets cpu0
+    BL CONFIG_INTERRUPT
+
 
 /* configure the GIC CPU Interface */
     LDR R0, =0xFFFEC100    // base address of CPU Interface
@@ -197,12 +204,19 @@ SERVICE_IRQ:
        If the ID is not recognized, branch to UNEXPECTED
        See the assembly example provided in the DE1-SoC Computer Manual
        on page 46 */
-    
+private_timer_check:
+    CMP R5, #29                     // Check for private timer niterupt
+    BNE Pushbutton_check            // 
+
+    BL ARM_TIM_ISR                  // private timer interupt
+    B EXIT_IRQ
+
 Pushbutton_check:
     CMP R5, #73
 UNEXPECTED:
     BNE UNEXPECTED      // if not recognized, stop here
     BL KEY_ISR
+
 EXIT_IRQ:
 /* Write to the End of Interrupt Register (ICCEOIR) */
     STR R5, [R4, #0x10] // write to ICCEOIR
@@ -214,35 +228,73 @@ SERVICE_FIQ:
 
 
 
+
 KEY_ISR:
+    PUSH {V1, LR}
     LDR R0, =0xFF200050    // base address of pushbutton KEY port
     LDR R1, [R0, #0xC]     // read edge capture register
+    LDR V1, =PB_int_flag   // address of flag
+    STR R1, [V1]           // Store content of push button edge capture to PB_int_flag
     MOV R2, #0xF
     STR R2, [R0, #0xC]     // clear the interrupt
-    LDR R0, =0xFF200020    // base address of HEX display
+
+
 CHECK_KEY0:
     MOV R3, #0x1
     ANDS R3, R3, R1        // check for KEY0
     BEQ CHECK_KEY1
-    MOV R2, #0b00111111
-    STR R2, [R0]           // display "0"
+    //MOV R2, #0b00111111
+    //STR R2, [R0]           // display "0"
     B END_KEY_ISR
 CHECK_KEY1:
     MOV R3, #0x2
     ANDS R3, R3, R1        // check for KEY1
     BEQ CHECK_KEY2
-    MOV R2, #0b00000110
-    STR R2, [R0]           // display "1"
+    //MOV R2, #0b00000110
+    //STR R2, [R0]           // display "1"
     B END_KEY_ISR
 CHECK_KEY2:
     MOV R3, #0x4
     ANDS R3, R3, R1        // check for KEY2
     BEQ IS_KEY3
-    MOV R2, #0b01011011
-    STR R2, [R0]           // display "2"
+    //MOV R2, #0b01011011
+    //STR R2, [R0]           // display "2"
     B END_KEY_ISR
 IS_KEY3:
     MOV R2, #0b01001111
     STR R2, [R0]           // display "3"
 END_KEY_ISR:
+    POP {V1, LR}
     BX LR
+
+
+
+ARM_TIM_ISR:
+    PUSH {V1-V4}
+
+    LDR V1,  =tim_int_flag          // V1 <- Address of Flag
+    MOV V2, #1                      // V2 <- Imm 1
+    STR V1, [V2]                    // Write '1'  to tim_int_flag
+
+    BL ARM_TIM_clear_INT_ASM
+    POP {V1-V4}
+    BX LR
+
+ARM_TIM_clear_INT_ASM:
+    PUSH {V1-V2, LR}
+    
+    LDR V2, =0x00000001                     // Values to clear interrupt status registe
+    LDR V1, =INTERUPT_register_addr         // Loads address of v1 (Interupt register)  
+    STR V2, [V1]                            // F bit cleared to 0 by writing a 0x00000001 to the interrupt status register
+
+    POP {V1-V2, LR}
+    BX LR
+
+// Takes no input, Clear the edgecapture register
+PB_clear_edgecp_ASM:
+    PUSH {V1-V2, LR}                    // Preserve values in V1-V4 and LR
+    LDR V1, =PB_ADDR                    // V1 <- 0xFF200050
+    LDRB V2, [V1, #0xC]                 // V2 <- read edge capture register
+    STR V2, [V1, #0xC]                  // Clear the edge capture register
+    POP {V1-V2, LR}                    	// Restore values in V1-V4 and LR
+	BX LR                               // Return
