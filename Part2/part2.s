@@ -10,10 +10,12 @@ B SERVICE_ABT_DATA  // aborted data vector
 B SERVICE_IRQ       // IRQ interrupt vector
 B SERVICE_FIQ       // FIQ interrupt vector
 
+.equ LED_ADDR, 0xFF200000               // Address of the LEDs' state
 
 .text
 .global _start
 
+currentSpeed: .word 0x1
 
 LOAD_register_addr = 0xFFFEC600
 COUNTER_register_addr = 0xFFFEC604
@@ -22,12 +24,12 @@ INTERUPT_register_addr = 0xFFFEC60C
 
 currentResult: .word 0
 
-     
+
 
 .equ HEX0to3, 0xFF200020                // Addres of 7-Segment display 0 to 3
 .equ HEX4to5, 0xFF200030                // Addres of 7-Segment display 4 to 5
 
-Display:  .word 0x3F, 0x06, 0x5B, 0x4F,0x66, 0x6D, 0x7D, 0x07,0x7F, 0x67, 0x77, 0x7C,0x39, 0x5E, 0x79, 0x71
+Message:  .word 0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07,0x7F, 0x67
 
 
 // Value of push buttons
@@ -104,7 +106,14 @@ _start:
 
 
 IDLE:
+    PUSH {V1-V2, LR}
+    BL setupLED
+
+    POP {V1-V2, LR}
     B IDLE // This is where you write your main program task(s)
+
+
+
 
 CONFIG_GIC:
     PUSH {LR}
@@ -230,7 +239,7 @@ SERVICE_FIQ:
 
 
 KEY_ISR:
-    PUSH {V1, LR}
+    PUSH {V1-V2, LR}
     LDR R0, =0xFF200050    // base address of pushbutton KEY port
     LDR R1, [R0, #0xC]     // read edge capture register
     LDR V1, =PB_int_flag   // address of flag
@@ -245,11 +254,32 @@ CHECK_KEY0:
     BEQ CHECK_KEY1
     //MOV R2, #0b00111111
     //STR R2, [R0]           // display "0"
+    
+
+    LDR V1, currentSpeed
+    LDR V2, =currentSpeed 
+	CMP V1, #0
+	BLE END_KEY_ISR
+    SUB V1, V1, #1
+    STR V1, [V2]
+
+    
+
     B END_KEY_ISR
 CHECK_KEY1:
     MOV R3, #0x2
     ANDS R3, R3, R1        // check for KEY1
     BEQ CHECK_KEY2
+
+ 
+    LDR V1, currentSpeed
+    LDR V2, =currentSpeed
+	CMP V1, #5
+	BGE END_KEY_ISR
+    ADDLT V1, V1, #1
+    STR V1, [V2]
+    
+
     //MOV R2, #0b00000110
     //STR R2, [R0]           // display "1"
     B END_KEY_ISR
@@ -264,7 +294,7 @@ IS_KEY3:
     MOV R2, #0b01001111
     STR R2, [R0]           // display "3"
 END_KEY_ISR:
-    POP {V1, LR}
+    POP {V1-V2, LR}
     BX LR
 
 
@@ -298,3 +328,109 @@ PB_clear_edgecp_ASM:
     STR V2, [V1, #0xC]                  // Clear the edge capture register
     POP {V1-V2, LR}                    	// Restore values in V1-V4 and LR
 	BX LR                               // Return
+
+
+write_LEDs_ASM:
+    PUSH {A1-A2, LR}
+    LDR A2, =LED_ADDR                   // load the address of the LEDs' state
+    STR A1, [A2]                        // update LED state with the contents of A1
+    POP {A1-A2, LR}
+    BX LR
+
+setupLED:
+    PUSH {V1-V5, LR}
+
+	LDR A1, currentSpeed
+    CMP V1, #0
+    BNE speed1
+	
+    BL write_LEDs_ASM
+
+    speed1:
+        CMP V1, #1
+        BNE speed2
+        LDR A1, =0x3
+        BL write_LEDs_ASM
+        B endSetupLED
+        
+    speed2:
+        CMP V1, #2
+        BNE speed3
+
+        LDR A1, =0xF
+        BL write_LEDs_ASM
+        B endSetupLED
+        
+
+    speed3:
+        CMP V1, #3
+        BNE speed4
+
+        LDR A1, =0x3F
+        BL write_LEDs_ASM
+        B endSetupLED
+        
+    speed4:
+        CMP V1, #4
+        BNE speed5 
+        LDR A1, =0xFF
+        BL write_LEDs_ASM
+        B endSetupLED
+
+    speed5:
+		CMP V1, #5
+		BNE endSetupLED
+        LDR A1, =0x3FF
+        BL write_LEDs_ASM
+
+
+    endSetupLED:
+        POP {V1-V5, LR}
+        BX LR
+        
+
+
+// Write to 7-segment
+// Inputs: A1 containing the current result 
+// Returns:  A1 converted to hexa
+convert_decimal_to_display: 
+	PUSH {V3-V4, LR}                      // Preserves V3 and LR
+    LDR V3, =Message                      // V3 <- Addres of =Display
+	
+	MOV V4, A1
+	LSL V4, V4, #2
+	LDR A1, [V3, V4]                      // A1 <- Addres of =Display + Offset (A1)        
+    LSR V4, V4, #2
+	POP {V3-V4, LR}                       // Restores V3 and LR
+    BX LR                                 // Return
+
+
+// A1 <- Initial Count Value
+// A2 <- Configuration Bit 
+ConfigureTimer:
+    PUSH {V1-V3, LR}
+    
+    LDR V1, =LOAD_register_addr             // v1 <- 0xFFFEC600 (addres of Load Register)
+    LDR V2, =CONTROL_register_addr          // v2 <- 0xFFFEC608 (addr of )
+
+    STR A1, [V1]                            // store at address v1 (Load Register) the initial count
+    
+	LDR V3, [V2]                            // V3 <- content of the control register
+    ORR V3, V3, A2                          // set bit E in control register using second argument
+    STR V3, [V2]                            // write to CONTROL register the change in the bit E
+    
+    POP {V1-V3, LR}
+    BX LR
+
+
+
+default_Display:
+    PUSH {V1-V4,LR} 
+
+    LDR A1, =0x50000000                     // A1 <- value to be stored in load counter
+    LDR A2, =0x07                       	// A2 <- Value to be stored in CONTROL register
+    BL ConfigureTimer
+    
+
+    POP {V1-V4,LR} 
+    BX LR

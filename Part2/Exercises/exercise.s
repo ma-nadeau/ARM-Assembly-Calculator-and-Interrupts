@@ -77,7 +77,7 @@ HEX_write_ASM:
 	BX LR
 
 _start:
-    LDR A1, =0x50000000                        // A1 <- value to be stored in load counter
+    LDR A1, =0x50000000                     // A1 <- value to be stored in load counter
     LDR A2, =0x07                       	// A2 <- Value to be stored in CONTROL register
 	BL ARM_TIM_config_ASM					// Config CONTROL register
 	
@@ -108,8 +108,6 @@ loop:
 	BEQ _start								// if we reach 15, infinite loop
 	B loop									// loop
 	
-
-
 
 
 
