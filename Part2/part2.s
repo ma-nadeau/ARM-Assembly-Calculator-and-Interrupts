@@ -16,6 +16,8 @@ B SERVICE_FIQ       // FIQ interrupt vector
 .global _start
 
 currentSpeed: .word 0x1
+previousSpeed: .word 0x0
+countingDown: .word =0x1
 
 LOAD_register_addr = 0xFFFEC600
 COUNTER_register_addr = 0xFFFEC604
@@ -107,8 +109,8 @@ _start:
 
 IDLE:
     PUSH {V1-V2, LR}
-    BL setupLED
-
+	
+	BL setupLED
     POP {V1-V2, LR}
     B IDLE // This is where you write your main program task(s)
 
@@ -239,7 +241,7 @@ SERVICE_FIQ:
 
 
 KEY_ISR:
-    PUSH {V1-V2, LR}
+    PUSH {V1-V5, LR}
     LDR R0, =0xFF200050    // base address of pushbutton KEY port
     LDR R1, [R0, #0xC]     // read edge capture register
     LDR V1, =PB_int_flag   // address of flag
@@ -258,7 +260,7 @@ CHECK_KEY0:
 
     LDR V1, currentSpeed
     LDR V2, =currentSpeed 
-	CMP V1, #0
+	CMP V1, #1
 	BLE END_KEY_ISR
     SUB V1, V1, #1
     STR V1, [V2]
@@ -291,13 +293,44 @@ CHECK_KEY2:
     //STR R2, [R0]           // display "2"
     B END_KEY_ISR
 IS_KEY3:
-    MOV R2, #0b01001111
-    STR R2, [R0]           // display "3"
+	MOV R3, #0x8
+    ANDS R3, R3, R1        // check for KEY3
+    BEQ END_KEY_ISR
+	BL Pause
+	
 END_KEY_ISR:
-    POP {V1-V2, LR}
+	
+    POP {V1-V5, LR}
+	
     BX LR
 
-
+Pause: 
+	PUSH {V1-V6, LR}
+	LDR V1, currentSpeed
+    LDR V2, =currentSpeed
+	LDR V6, =previousSpeed
+	STR V1, [V3]				// Store current previous speed
+	
+   	MOV V5, #0
+	LDR V4, =countingDown
+	LDR V3, countingDown
+	
+	CMP V3, #1
+	STREQ V5, [V2]
+	STREQ V1, [V6]
+	BEQ done_pause
+	
+	CMP V3, #1
+	MOVNE V5, #1
+	LDRNE V4, previousSpeed
+	STRNE V4, [V2]
+	
+	done_pause:
+ 
+		BL write_LEDs_ASM
+		POP {V1-V6, LR}
+		BX LR
+	
 
 ARM_TIM_ISR:
     PUSH {V1-V4}
@@ -340,12 +373,14 @@ write_LEDs_ASM:
 setupLED:
     PUSH {V1-V5, LR}
 
-	LDR A1, currentSpeed
-    CMP V1, #0
-    BNE speed1
+	LDR V1, currentSpeed
+	CMP V1, #0
 	
+    BNE speed1
+	MOVEQ A1, V1
     BL write_LEDs_ASM
-
+	CMP V1, #0
+	B  endSetupLED
     speed1:
         CMP V1, #1
         BNE speed2
