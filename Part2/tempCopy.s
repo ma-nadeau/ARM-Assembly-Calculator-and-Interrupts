@@ -18,7 +18,7 @@ B SERVICE_FIQ       // FIQ interrupt vector
 currentSpeed: .word 0x1
 previousSpeed: .word 0x0
 
-countingDown: .word 0x1                // by default set to one
+countingDown: .word =0x1                // by default set to one
 currentFrequency: .word 50000000
 
 
@@ -466,18 +466,41 @@ Pause:
     LDR V6, =countingDown
 	LDR V7, countingDown
     
-    CMP V1, #0                          // Compare speed with 0
+    CMP currentSpeed, #0                // Compare speed with 0
     STRNE V1, [V4]                      // if current speed not equal to 0, store it in memory
 
-    CMP V7, #1                          // compare counting down with 1
+    CMP V7, #1
 	STREQ V5, [V2]                      // if counting down set to 0, ->  currentSpeed = 0 in memory
-    STREQ V5, [V6]                      // counting to 0 in memory
-    LDRNE V3, previousSpeed             // update value of previous Speed in registers
-    STRNE V3, [V2]                      // otherwise, previousSpeed restored to currentSpeed in memory
-	ADDNE V5,V5, #1                     // V5 <- 1
-    STRNE V5, [V6]                      // counting to 1 in memory
+    STRNE V4, [V2]                      // otherwise, previousSpeed restored to currentSpeed in memory
+	
 
-    POP {V1-V7, LR}
-    BX LR
    
 
+    
+
+Pause: 
+	PUSH {V1-V6, LR}
+	LDR V1, currentSpeed
+    LDR V2, =currentSpeed
+	LDR V6, =previousSpeed
+	STR V1, [V3]				// Store current previous speed
+	
+   	MOV V5, #0
+	LDR V4, =countingDown
+	LDR V3, countingDown
+	
+	CMP V3, #1
+	STREQ V5, [V2]
+	STREQ V1, [V6]
+	BEQ done_pause
+	
+	CMP V3, #1
+	MOVNE V5, #1
+	LDRNE V4, previousSpeed
+	STRNE V4, [V2]
+	
+	done_pause:
+ 
+		BL write_LEDs_ASM
+		POP {V1-V6, LR}
+		BX LR
