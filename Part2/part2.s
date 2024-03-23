@@ -52,6 +52,7 @@ PB_int_flag:
 tim_int_flag:
     .word   0x0
 
+
 // Inputs: Push button index (PB0 -> A1 = 0; PB1 -> A1 = 1; ..., PB3 -> A1 = 3)
 // It enables the interrupt function for the corresponding pushbuttons by 
 // setting the interrupt mask bits to '1'.
@@ -68,7 +69,7 @@ enable_PB_INT_ASM:
     POP {V1-V4, LR}
     BX LR
 
-//Active Interupt for Counter
+
 ARM_TIM_config_ASM:
     PUSH {V1-V5, LR}
     
@@ -78,7 +79,6 @@ ARM_TIM_config_ASM:
 
     POP {V1-V5, LR}
     BX LR
-
 
 
 
@@ -102,8 +102,7 @@ _start:
 
     BL enable_PB_INT_ASM                    // Active interupt for pushbuttons
 
-    BL ARM_TIM_config_ASM                   // Active interupt for ARM A9 private timer
-
+    BL TIMER_SETUP                   // Active interupt for ARM A9 private timer
     
     // enable IRQ interrupts in the processor
     MOV R0, #0b01010011                     // IRQ unmasked, MODE = SVC
@@ -220,7 +219,7 @@ SERVICE_IRQ:
        on page 46 */
 private_timer_check:
     CMP R5, #29                     // Check for private timer niterupt
-    BNE Pushbutton_check            // 
+    BNE Pushbutton_check            
 
     BL ARM_TIM_ISR                  // private timer interupt
     B EXIT_IRQ
@@ -295,15 +294,16 @@ END_KEY_ISR:
 	
 
 ARM_TIM_ISR:
-    PUSH {V1-V4}
+    PUSH {V1-V4,LR}
 
     LDR V1,  =tim_int_flag          // V1 <- Address of Flag
     MOV V2, #1                      // V2 <- Imm 1
-    STR V1, [V2]                    // Write '1'  to tim_int_flag
+    STR V2, [V1]                    // Write '1'  to tim_int_flag
 
     BL ARM_TIM_clear_INT_ASM
-    POP {V1-V4}
+    POP {V1-V4,LR}
     BX LR
+
 
 ARM_TIM_clear_INT_ASM:
     PUSH {V1-V2, LR}
@@ -323,6 +323,30 @@ PB_clear_edgecp_ASM:
     STR V2, [V1, #0xC]                  // Clear the edge capture register
     POP {V1-V2, LR}                    	// Restore values in V1-V4 and LR
 	BX LR                               // Return
+
+
+TIMER_SETUP:
+    PUSH {V1-V7, LR}
+    
+    LDR V1, =LOAD_register_addr             // v1 <- 0xFFFEC600 (addres of Load Register)
+    LDR V2, =CONTROL_register_addr          // v2 <- 0xFFFEC608 (addr of )
+    LDR V3, =INTERUPT_register_addr         // Loads address of v1 (Interupt register) 
+
+    LDR V4, =0x01                           // Values to clear interrupt status register
+    STR V4, [V3]                            // clear interupt register
+
+    LDR V4, currentFrequency                // V4 <- Current Frequency
+    STR V4, [V1]                            // store at address v1 (Load Register) the initial count
+
+    LDR V5, [V2]                            // V5 <- content of the control register 
+    LDR V4, =0x07                       	// V4 <- Value to be stored in CONTROL register
+    ORR V4, V5, V4                          // set bit E in control register using second argument
+    STR V4, [V2]                            // store at address v1 (Load Register) the initial count
+    
+    POP {V1-V7, LR}
+    BX LR
+
+
 
 
 write_LEDs_ASM:
@@ -480,4 +504,5 @@ Pause:
     POP {V1-V7, LR}
     BX LR
    
+
 
