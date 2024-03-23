@@ -20,6 +20,7 @@ previousSpeed: .word 0x0
 
 countingDown: .word 0x1                // by default set to one
 currentFrequency: .word 50000000
+previousFrequency: .word 0
 
 
 LOAD_register_addr = 0xFFFEC600
@@ -35,7 +36,7 @@ currentResult: .word 0
 .equ HEX4to5, 0xFF200030                // Addres of 7-Segment display 4 to 5
 
 List1:  .word 0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07,0x7F, 0x67
-List2: .word 0x77, 0x7D, 0x1F, 0x4E, 0x0D, 0x3D, 0x4F, 0x47, 0x5E, 0x37, 
+List2: .word 0x77, 0x7D, 0x1F, 0x4E, 0x0D, 0x3D, 0x4F, 0x47, 0x5E, 0x37
 
 my_list: .space 40     
 
@@ -445,23 +446,33 @@ default_Display:
 
 // ----------------------------    Set Speeds   --------------------------- \\ 
 increase_Speed: 
-    PUSH {V1-V2, LR} 
+    PUSH {V1-V6, LR} 
     LDR V1, currentSpeed
     LDR V2, =currentSpeed
+    LDR V3, currentFrequency
+    LDR V4, =currentFrequency
+	LDR V5, =5000000
 	CMP V1, #5              // compare current speed with max
     ADDLT V1, V1, #1        // Otherwise add 1
     STRLT V1, [V2]          // Store current speed 
-    POP {V1-V2, LR} 
+    ADDLT V3, V3, V5
+    STRLT V3, [V4]              // store current speed
+    POP {V1-V6, LR} 
     BX LR 
 
 decrease_Speed:   
-    PUSH {V1-V2, LR} 
+    PUSH {V1-V6, LR} 
     LDR V1, currentSpeed
     LDR V2, =currentSpeed 
+    LDR V3, currentFrequency
+    LDR V4, =currentFrequency
+	LDR V5, =5000000
 	CMP V1, #1                  // compare speed with 1 
     SUBGT V1, V1, #1            // if current speed greater than 1, sub 1
     STRGT V1, [V2]              // store current speed
-    POP {V1-V2, LR} 
+    ADDGT V3, V3, V5
+    STRGT V3, [V4]              // store current speed
+    POP {V1-V6, LR} 
     BX LR 
 
  
@@ -471,6 +482,9 @@ Pause:
     LDR V2, =currentSpeed
     LDR V3, previousSpeed
     LDR V4, =previousSpeed
+
+	
+	
 
     MOV V5, #0
 
@@ -487,11 +501,29 @@ Pause:
     STRNE V3, [V2]                      // otherwise, previousSpeed restored to currentSpeed in memory
 	ADDNE V5,V5, #1                     // V5 <- 1
     STRNE V5, [V6]                      // counting to 1 in memory
+	
+	BL setEbitTimer
 
     POP {V1-V7, LR}
     BX LR
    
+setEbitTimer:
+	
+	PUSH {V1-V7}
+	
+	LDR V1, =CONTROL_register_addr
+	LDR V2, [V1]
+	MOV V4, #1
+	MOV V6, #4					//
+	MOV V7, #7
+	AND V3, V2, V4				//get E bit
+	CMP V3, #1 					// Check if E bit is set to 1
+	STREQB V6, [V1]
+	STRNEB V7, [V1]
 
+	
+	POP {V1-V7}
+	BX LR
 
 
 // Slider Switches Driver
