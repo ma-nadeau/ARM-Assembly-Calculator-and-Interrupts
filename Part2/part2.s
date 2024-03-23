@@ -34,8 +34,10 @@ currentResult: .word 0
 .equ HEX0to3, 0xFF200020                // Addres of 7-Segment display 0 to 3
 .equ HEX4to5, 0xFF200030                // Addres of 7-Segment display 4 to 5
 
-Message:  .word 0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07,0x7F, 0x67
+List1:  .word 0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07,0x7F, 0x67
+List2: .word 0x77, 0x7D, 0x1F, 0x4E, 0x0D, 0x3D, 0x4F, 0x47, 0x5E, 0x37, 
 
+my_list: .space 40     
 
 // Value of push buttons
 PB0 = 0x00000001
@@ -46,11 +48,9 @@ PB3 = 0x00000008
 .equ PB_ADDR, 0xFF200050                // Address of Push Button
 
 
-PB_int_flag: 
-    .word 0x0
+PB_int_flag: .word 0x0
 
-tim_int_flag:
-    .word   0x0
+tim_int_flag: .word 0x0
 
 
 // Inputs: Push button index (PB0 -> A1 = 0; PB1 -> A1 = 1; ..., PB3 -> A1 = 3)
@@ -111,7 +111,7 @@ _start:
 
 IDLE:
     PUSH {V1-V2, LR}
-	
+	BL getValues
 	BL setupLED
     POP {V1-V2, LR}
     B IDLE // This is where you write your main program task(s)
@@ -411,19 +411,6 @@ setupLED:
         
 
 
-// Write to 7-segment
-// Inputs: A1 containing the current result 
-// Returns:  A1 converted to hexa
-convert_decimal_to_display: 
-	PUSH {V3-V4, LR}                      // Preserves V3 and LR
-    LDR V3, =Message                      // V3 <- Addres of =Display
-	
-	MOV V4, A1
-	LSL V4, V4, #2
-	LDR A1, [V3, V4]                      // A1 <- Addres of =Display + Offset (A1)        
-    LSR V4, V4, #2
-	POP {V3-V4, LR}                       // Restores V3 and LR
-    BX LR                                 // Return
 
 
 // A1 <- Initial Count Value
@@ -506,3 +493,106 @@ Pause:
    
 
 
+
+// Slider Switches Driver
+// returns the state of slider switches in A1
+// post- A1: slide switch state
+.equ SW_ADDR, 0xFF200040
+read_slider_switches_ASM:
+    LDR A2, =SW_ADDR                    // load the address of slider switch state
+    LDR A1, [A2]                        // read slider switch state 
+    BX  LR
+
+
+
+// No Inputs
+// Returns: A2 <- SW0-SW3  and  A3 <- SW4-SW7
+getValues:
+    PUSH {V1-V8, LR}				    // Preserve values of V1-V2 and LR 
+
+    LDR V1, =SW_ADDR                    // load the address of slider switch state
+    LDR V2, [V1]                        // read slider switch state
+    LDR V5, =List1
+    LDR V6, =List2
+    LDR V7, =my_list 
+     
+	
+    AND V3, V2, #1          // Extract the lower 1 bits and store them in V3
+    CMP V3, #1             
+    LDREQ V4, [V5]
+    STREQB V4, [V7]
+    LDRNE V4, [V6]
+    STRNEB V4, [V7]
+
+    AND V3, V2, #2                  // Extract the lower 1 bits and store them in V3
+	CMP V3, #2 
+	LDREQ V4, [V5, #4]
+    STREQB V4, [V7, #1]
+    LDRNE V4, [V6, #4]
+    STRNEB V4, [V7, #1]
+
+    AND V3, V2, #4                   // Extract the lower 1 bits and store them in V3
+	CMP V3, #4 
+	LDREQ V4, [V5, #8]
+    STREQB V4, [V7, #2]
+    LDRNE V4, [V6, #8]
+    STRNEB V4, [V7, #2]
+
+    AND V3, V2, #8                  // Extract the lower 1 bits and store them in V3
+	CMP V3, #8 
+	LDREQ V4, [V5, #12]
+    STREQB V4, [V7, #3]
+    LDRNE V4, [V6, #12]
+    STRNEB V4, [V7, #3]
+
+    AND V3, V2, #16                  // Extract the lower 1 bits and store them in V3
+	CMP V3, #16 
+	LDREQ V4, [V5, #16]
+    STREQB V4, [V7, #4]
+    LDRNE V4, [V6, #16]
+    STRNEB V4, [V7, #4]
+
+    AND V3, V2, #32                   // Extract the lower 1 bits and store them in V3
+	CMP V3, #32 
+	LDREQ V4, [V5, #20]
+    STREQB V4, [V7, #5]
+    LDRNE V4, [V6, #20]
+    STRNEB V4, [V7, #5]
+
+    AND V3, V2, #64                   // Extract the lower 1 bits and store them in V3
+	CMP V3, #64 
+	LDREQ V4, [V5, #24]
+    STREQB V4, [V7, #6]
+    LDRNE V4, [V6, #24]
+    STRNEB V4, [V7, #6]
+
+    AND V3, V2, #128                   // Extract the lower 1 bits and store them in V3
+	CMP V3, #128 
+	LDREQ V4, [V5, #28]
+    STREQB V4, [V7, #7]
+    LDRNE V4, [V6, #28]
+    STRNEB V4, [V7, #7]
+
+    AND V3, V2, #256                   // Extract the lower 1 bits and store them in V3
+	CMP V3, #256 
+	LDREQ V4, [V5, #32]
+    STREQB V4, [V7, #8]
+    LDRNE V4, [V6, #32]
+    STRNEB V4, [V7, #8]
+
+    AND V3, V2, #512                   // Extract the lower 1 bits and store them in V3
+	CMP V3, #512 
+	LDREQ V4, [V5, #36]
+    STREQB V4, [V7, #9]
+    LDRNE V4, [V6, #36]
+    STRNEB V4, [V7, #9]
+
+    AND V3, V2, #1024                   // Extract the lower 1 bits and store them in V3
+	CMP V3, #1024 
+	LDREQ V4, [V5, #40]
+    STREQB V4, [V7, #10]
+    LDRNE V4, [V6, #40]
+    STRNEB V4, [V7, #10]
+
+    POP {V1-V8, LR}                     // Restaure values of V1-V2 and LR 
+    BX LR                               // Return 
