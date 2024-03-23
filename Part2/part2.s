@@ -451,12 +451,13 @@ increase_Speed:
     LDR V2, =currentSpeed
     LDR V3, currentFrequency
     LDR V4, =currentFrequency
-	LDR V5, =5000000
+	LDR V5, =50000000
 	CMP V1, #5              // compare current speed with max
     ADDLT V1, V1, #1        // Otherwise add 1
     STRLT V1, [V2]          // Store current speed 
     ADDLT V3, V3, V5
     STRLT V3, [V4]              // store current speed
+	BL TIMER_SETUP
     POP {V1-V6, LR} 
     BX LR 
 
@@ -466,12 +467,13 @@ decrease_Speed:
     LDR V2, =currentSpeed 
     LDR V3, currentFrequency
     LDR V4, =currentFrequency
-	LDR V5, =5000000
+	LDR V5, =50000000
 	CMP V1, #1                  // compare speed with 1 
     SUBGT V1, V1, #1            // if current speed greater than 1, sub 1
     STRGT V1, [V2]              // store current speed
-    ADDGT V3, V3, V5
+    SUBGT V3, V3, V5
     STRGT V3, [V4]              // store current speed
+	BL TIMER_SETUP
     POP {V1-V6, LR} 
     BX LR 
 
@@ -520,7 +522,7 @@ setEbitTimer:
 	CMP V3, #1 					// Check if E bit is set to 1
 	STREQB V6, [V1]
 	STRNEB V7, [V1]
-
+	
 	
 	POP {V1-V7}
 	BX LR
