@@ -32,6 +32,8 @@ currentResult: .word 0
 
 currentCount: .word 1
 
+order: .word 1
+
 .equ HEX0to3, 0xFF200020                // Addres of 7-Segment display 0 to 3
 .equ HEX4to5, 0xFF200030                // Addres of 7-Segment display 4 to 5
 
@@ -125,12 +127,7 @@ IDLE:
     PUSH {V1-V2, LR}
 	BL getValues
 	BL setupLED
-    BL display_to_first_hex
-    BL display_to_second_hex
-    BL display_to_third_hex
-    BL display_to_fourth_hex
-    BL display_to_fifth_hex
-    BL display_to_sixth_hex
+   	BL display_to_HEX
     POP {V1-V2, LR}
     B IDLE // This is where you write your main program task(s)
 
@@ -293,6 +290,14 @@ CHECK_KEY2:
     MOV R3, #0x4
     ANDS R3, R3, R1        // check for KEY2
     BEQ IS_KEY3
+    LDR V1, order
+    LDR V2, =order
+    MOV V3, #0
+    MOV V4, #1
+    CMP V1, #1
+    STRNE V4, [V2]
+    STREQ V3, [V2]
+
     //MOV R2, #0b01011011
     //STR R2, [R0]           // display "2"
     B END_KEY_ISR
@@ -399,7 +404,7 @@ setupLED:
     speed1:
         CMP V1, #1
         BNE speed2
-        LDR A1, =0x3
+        LDR A1, =0x3FF
         BL write_LEDs_ASM
         B endSetupLED
         
@@ -407,7 +412,7 @@ setupLED:
         CMP V1, #2
         BNE speed3
 
-        LDR A1, =0xF
+        LDR A1, =0xFF
         BL write_LEDs_ASM
         B endSetupLED
         
@@ -423,14 +428,14 @@ setupLED:
     speed4:
         CMP V1, #4
         BNE speed5 
-        LDR A1, =0xFF
+        LDR A1, =0xF
         BL write_LEDs_ASM
         B endSetupLED
 
     speed5:
 		CMP V1, #5
 		BNE endSetupLED
-        LDR A1, =0x3FF
+        LDR A1, =0x3
         BL write_LEDs_ASM
 
 
@@ -470,7 +475,7 @@ default_Display:
     BX LR
 
 // ----------------------------    Set Speeds   --------------------------- \\ 
-increase_Speed: 
+decrease_Speed: 
     PUSH {V1-V6, LR} 
     LDR V1, currentSpeed
     LDR V2, =currentSpeed
@@ -485,8 +490,7 @@ increase_Speed:
 	BL TIMER_SETUP
     POP {V1-V6, LR} 
     BX LR 
-
-decrease_Speed:   
+increase_Speed:  
     PUSH {V1-V6, LR} 
     LDR V1, currentSpeed
     LDR V2, =currentSpeed 
@@ -638,7 +642,7 @@ getValues:
     STRNEB V4, [V7, #5]
     STRNE V4, [V8]
 
-    LDR V8, =value6
+    LDR V8, =value7
 
     AND V3, V2, #64                   // Extract the lower 1 bits and store them in V3
 	CMP V3, #64 
@@ -649,7 +653,7 @@ getValues:
     STRNEB V4, [V7, #6]
     STRNE V4, [V8]
 
-    LDR V8, =value7
+    LDR V8, =value8
 
     AND V3, V2, #128                   // Extract the lower 1 bits and store them in V3
 	CMP V3, #128 
@@ -660,7 +664,7 @@ getValues:
     STRNEB V4, [V7, #7]
     STRNE V4, [V8]
     
-    LDR V8, =value8
+    LDR V8, =value9
 
     AND V3, V2, #256                   // Extract the lower 1 bits and store them in V3
 	CMP V3, #256 
@@ -671,7 +675,7 @@ getValues:
     STRNEB V4, [V7, #8]
     STRNE V4, [V8]
 
-    LDR V8, =value9
+    LDR V8, =value10
 
     AND V3, V2, #512                   // Extract the lower 1 bits and store them in V3
 	CMP V3, #512 
@@ -682,19 +686,334 @@ getValues:
     STRNEB V4, [V7, #9]
     STRNE V4, [V8]
 
-    LDR V8, =value10
+    //LDR V8, =value10
 
-    AND V3, V2, #1024                   // Extract the lower 1 bits and store them in V3
-	CMP V3, #1024 
-	LDREQ V4, [V5, #40]
-    STREQB V4, [V7, #10]
-    STREQ V4, [V8]
-    LDRNE V4, [V6, #40]
-    STRNEB V4, [V7, #10]
-    STRNE V4, [V8]
+    //AND V3, V2, #1024                   // Extract the lower 1 bits and store them in V3
+	//CMP V3, #1024 
+	//LDREQ V4, [V5, #40]
+    //STREQB V4, [V7, #10]
+    //STREQ V4, [V8]
+    //LDRNE V4, [V6, #40]
+    //STRNEB V4, [V7, #10]
+    //STRNE V4, [V8]
 
     POP {V1-V8, LR}                     // Restaure values of V1-V2 and LR 
     BX LR                               // Return 
+
+r_display_to_first_hex:
+    PUSH {V1-V8, LR}
+    LDR V1, currentCount
+    LDR V2, =currentCount
+
+    CMP V1, #1 
+    LDREQ V3, value1
+    BEQ r_end_display_to_first_hex
+
+    CMP V1, #2
+    LDREQ V3, value2
+    BEQ r_end_display_to_first_hex
+    
+    CMP V1, #3
+    LDREQ V3, value3
+    BEQ r_end_display_to_first_hex
+
+    CMP V1, #4
+    LDREQ V3, value4
+    BEQ r_end_display_to_first_hex
+
+    CMP V1, #5
+    LDREQ V3, value5
+    BEQ r_end_display_to_first_hex
+
+    CMP V1, #6
+    LDREQ V3, value6
+    BEQ r_end_display_to_first_hex
+
+    CMP V1, #7
+    LDREQ V3, value7
+    BEQ r_end_display_to_first_hex
+
+    CMP V1, #8
+    LDREQ V3, value8
+    BEQ r_end_display_to_first_hex
+
+    CMP V1, #9
+    LDREQ V3, value9
+    BEQ r_end_display_to_first_hex
+
+    CMP V1, #10
+    LDREQ V3, value10
+    BEQ r_end_display_to_first_hex
+
+
+    r_end_display_to_first_hex:
+        LDR V4, =HEX0to3
+        STRB V3, [V4]
+        POP {V1-V8, LR}
+        BX LR
+
+r_display_to_second_hex:
+    PUSH {V1-V8, LR}
+    LDR V1, currentCount
+    LDR V2, =currentCount
+
+    CMP V1, #1 
+    LDREQ V3, value2
+    BEQ r_end_display_to_second_hex
+
+    CMP V1, #2
+    LDREQ V3, value3
+    BEQ r_end_display_to_second_hex
+    
+    CMP V1, #3
+    LDREQ V3, value4
+    BEQ r_end_display_to_second_hex
+
+    CMP V1, #4
+    LDREQ V3, value5
+    BEQ r_end_display_to_second_hex
+
+    CMP V1, #5
+    LDREQ V3, value6
+    BEQ r_end_display_to_second_hex
+
+    CMP V1, #6
+    LDREQ V3, value7
+    BEQ r_end_display_to_second_hex
+
+    CMP V1, #7
+    LDREQ V3, value8
+    BEQ r_end_display_to_second_hex
+
+    CMP V1, #8
+    LDREQ V3, value9
+    BEQ r_end_display_to_second_hex
+
+    CMP V1, #9
+    LDREQ V3, value10
+    BEQ r_end_display_to_second_hex
+
+    CMP V1, #10
+    LDREQ V3, value1
+    BEQ r_end_display_to_second_hex
+
+
+    r_end_display_to_second_hex:
+        LDR V4, =HEX0to3
+        STRB V3, [V4, #1]
+        POP {V1-V8, LR}
+        BX LR
+
+r_display_to_third_hex:
+    PUSH {V1-V4, LR}
+    LDR V1, currentCount
+    LDR V2, =currentCount
+
+    CMP V1, #1 
+    LDREQ V3, value3
+    BEQ r_end_display_to_third_hex
+
+    CMP V1, #2
+    LDREQ V3, value4
+    BEQ r_end_display_to_third_hex
+    
+    CMP V1, #3
+    LDREQ V3, value5
+    BEQ r_end_display_to_third_hex
+
+    CMP V1, #4
+    LDREQ V3, value6
+    BEQ r_end_display_to_third_hex
+
+    CMP V1, #5
+    LDREQ V3, value7
+    BEQ r_end_display_to_third_hex
+
+    CMP V1, #6
+    LDREQ V3, value8
+    BEQ r_end_display_to_third_hex
+
+    CMP V1, #7
+    LDREQ V3, value9
+    BEQ r_end_display_to_third_hex
+
+    CMP V1, #8
+    LDREQ V3, value10
+    BEQ r_end_display_to_third_hex
+
+    CMP V1, #9
+    LDREQ V3, value1
+    BEQ r_end_display_to_third_hex
+
+    CMP V1, #10
+    LDREQ V3, value2
+    BEQ r_end_display_to_third_hex
+
+
+    r_end_display_to_third_hex:
+        LDR V4, =HEX0to3
+        STRB V3, [V4, #2]
+        POP {V1-V4, LR}
+        BX LR
+
+r_display_to_fourth_hex:
+    PUSH {V1-V4, LR}
+    LDR V1, currentCount
+    LDR V2, =currentCount
+
+    CMP V1, #1 
+    LDREQ V3, value4
+    BEQ r_end_display_to_fourth_hex
+
+    CMP V1, #2
+    LDREQ V3, value5
+    BEQ r_end_display_to_fourth_hex
+    
+    CMP V1, #3
+    LDREQ V3, value6
+    BEQ r_end_display_to_fourth_hex
+
+    CMP V1, #4
+    LDREQ V3, value7
+    BEQ r_end_display_to_fourth_hex
+
+    CMP V1, #5
+    LDREQ V3, value8
+    BEQ r_end_display_to_fourth_hex
+
+    CMP V1, #6
+    LDREQ V3, value9
+    BEQ r_end_display_to_fourth_hex
+
+    CMP V1, #7
+    LDREQ V3, value10
+    BEQ r_end_display_to_fourth_hex
+
+    CMP V1, #8
+    LDREQ V3, value1
+    BEQ r_end_display_to_fourth_hex
+
+    CMP V1, #9
+    LDREQ V3, value2
+    BEQ r_end_display_to_fourth_hex
+
+    CMP V1, #10
+    LDREQ V3, value3
+    BEQ r_end_display_to_fourth_hex
+
+
+    r_end_display_to_fourth_hex:
+        LDR V4, =HEX0to3
+        STRB V3, [V4, #3]
+        POP {V1-V4, LR}
+        BX LR
+
+r_display_to_fifth_hex:
+    PUSH {V1-V4, LR}
+    LDR V1, currentCount
+    LDR V2, =currentCount
+
+    CMP V1, #1 
+    LDREQ V3, value5
+    BEQ r_end_display_to_fifth_hex
+
+    CMP V1, #2
+    LDREQ V3, value6
+    BEQ r_end_display_to_fifth_hex
+    
+    CMP V1, #3
+    LDREQ V3, value7
+    BEQ r_end_display_to_fifth_hex
+
+    CMP V1, #4
+    LDREQ V3, value8
+    BEQ r_end_display_to_fifth_hex
+
+    CMP V1, #5
+    LDREQ V3, value9
+    BEQ r_end_display_to_fifth_hex
+
+    CMP V1, #6
+    LDREQ V3, value10
+    BEQ r_end_display_to_fifth_hex
+
+    CMP V1, #7
+    LDREQ V3, value1
+    BEQ r_end_display_to_fifth_hex
+
+    CMP V1, #8
+    LDREQ V3, value2
+    BEQ r_end_display_to_fifth_hex
+
+    CMP V1, #9
+    LDREQ V3, value3
+    BEQ r_end_display_to_fifth_hex
+
+    CMP V1, #10
+    LDREQ V3, value4
+    BEQ r_end_display_to_fifth_hex
+
+
+    r_end_display_to_fifth_hex:
+        LDR V4, =HEX4to5
+        STRB V3, [V4]
+        POP {V1-V4, LR}
+        BX LR
+
+r_display_to_sixth_hex:
+    PUSH {V1-V4, LR}
+    LDR V1, currentCount
+    LDR V2, =currentCount
+
+    CMP V1, #1 
+    LDREQ V3, value6
+    BEQ r_end_display_to_sixth_hex
+
+    CMP V1, #2
+    LDREQ V3, value7
+    BEQ r_end_display_to_sixth_hex
+    
+    CMP V1, #3
+    LDREQ V3, value8
+    BEQ r_end_display_to_sixth_hex
+
+    CMP V1, #4
+    LDREQ V3, value9
+    BEQ r_end_display_to_sixth_hex
+
+    CMP V1, #5
+    LDREQ V3, value10
+    BEQ r_end_display_to_sixth_hex
+
+    CMP V1, #6
+    LDREQ V3, value1
+    BEQ r_end_display_to_sixth_hex
+
+    CMP V1, #7
+    LDREQ V3, value2
+    BEQ r_end_display_to_sixth_hex
+
+    CMP V1, #8
+    LDREQ V3, value3
+    BEQ r_end_display_to_sixth_hex
+
+    CMP V1, #9
+    LDREQ V3, value4
+    BEQ r_end_display_to_sixth_hex
+
+    CMP V1, #10
+    LDREQ V3, value5
+    BEQ r_end_display_to_sixth_hex
+
+
+    r_end_display_to_sixth_hex:
+        LDR V4, =HEX4to5
+        STRB V3, [V4, #1]
+        POP {V1-V4, LR}
+        BX LR
+
+
+
 
 display_to_first_hex:
     PUSH {V1-V8, LR}
@@ -702,43 +1021,43 @@ display_to_first_hex:
     LDR V2, =currentCount
 
     CMP V1, #1 
-    LDREQ V3, value1
+    LDREQ V3, value10
     BEQ end_display_to_first_hex
 
     CMP V1, #2
-    LDREQ V3, value2
+    LDREQ V3, value9
     BEQ end_display_to_first_hex
     
     CMP V1, #3
-    LDREQ V3, value3
-    BEQ end_display_to_first_hex
-
-    CMP V1, #4
-    LDREQ V3, value4
-    BEQ end_display_to_first_hex
-
-    CMP V1, #5
-    LDREQ V3, value5
-    BEQ end_display_to_first_hex
-
-    CMP V1, #6
-    LDREQ V3, value6
-    BEQ end_display_to_first_hex
-
-    CMP V1, #7
-    LDREQ V3, value7
-    BEQ end_display_to_first_hex
-
-    CMP V1, #8
     LDREQ V3, value8
     BEQ end_display_to_first_hex
 
+    CMP V1, #4
+    LDREQ V3, value7
+    BEQ end_display_to_first_hex
+
+    CMP V1, #5
+    LDREQ V3, value6
+    BEQ end_display_to_first_hex
+
+    CMP V1, #6
+    LDREQ V3, value5
+    BEQ end_display_to_first_hex
+
+    CMP V1, #7
+    LDREQ V3, value4
+    BEQ end_display_to_first_hex
+
+    CMP V1, #8
+    LDREQ V3, value3
+    BEQ end_display_to_first_hex
+
     CMP V1, #9
-    LDREQ V3, value9
+    LDREQ V3, value2
     BEQ end_display_to_first_hex
 
     CMP V1, #10
-    LDREQ V3, value10
+    LDREQ V3, value1
     BEQ end_display_to_first_hex
 
 
@@ -754,43 +1073,43 @@ display_to_second_hex:
     LDR V2, =currentCount
 
     CMP V1, #1 
-    LDREQ V3, value2
-    BEQ end_display_to_second_hex
-
-    CMP V1, #2
-    LDREQ V3, value3
-    BEQ end_display_to_second_hex
-    
-    CMP V1, #3
-    LDREQ V3, value4
-    BEQ end_display_to_second_hex
-
-    CMP V1, #4
-    LDREQ V3, value5
-    BEQ end_display_to_second_hex
-
-    CMP V1, #5
-    LDREQ V3, value6
-    BEQ end_display_to_second_hex
-
-    CMP V1, #6
-    LDREQ V3, value7
-    BEQ end_display_to_second_hex
-
-    CMP V1, #7
-    LDREQ V3, value8
-    BEQ end_display_to_second_hex
-
-    CMP V1, #8
     LDREQ V3, value9
     BEQ end_display_to_second_hex
 
+    CMP V1, #2
+    LDREQ V3, value8
+    BEQ end_display_to_second_hex
+    
+    CMP V1, #3
+    LDREQ V3, value7
+    BEQ end_display_to_second_hex
+
+    CMP V1, #4
+    LDREQ V3, value6
+    BEQ end_display_to_second_hex
+
+    CMP V1, #5
+    LDREQ V3, value5
+    BEQ end_display_to_second_hex
+
+    CMP V1, #6
+    LDREQ V3, value4
+    BEQ end_display_to_second_hex
+
+    CMP V1, #7
+    LDREQ V3, value3
+    BEQ end_display_to_second_hex
+
+    CMP V1, #8
+    LDREQ V3, value2
+    BEQ end_display_to_second_hex
+
     CMP V1, #9
-    LDREQ V3, value10
+    LDREQ V3, value1
     BEQ end_display_to_second_hex
 
     CMP V1, #10
-    LDREQ V3, value1
+    LDREQ V3, value10
     BEQ end_display_to_second_hex
 
 
@@ -806,43 +1125,43 @@ display_to_third_hex:
     LDR V2, =currentCount
 
     CMP V1, #1 
-    LDREQ V3, value3
-    BEQ end_display_to_third_hex
-
-    CMP V1, #2
-    LDREQ V3, value4
-    BEQ end_display_to_third_hex
-    
-    CMP V1, #3
-    LDREQ V3, value5
-    BEQ end_display_to_third_hex
-
-    CMP V1, #4
-    LDREQ V3, value6
-    BEQ end_display_to_third_hex
-
-    CMP V1, #5
-    LDREQ V3, value7
-    BEQ end_display_to_third_hex
-
-    CMP V1, #6
     LDREQ V3, value8
     BEQ end_display_to_third_hex
 
+    CMP V1, #2
+    LDREQ V3, value7
+    BEQ end_display_to_third_hex
+    
+    CMP V1, #3
+    LDREQ V3, value6
+    BEQ end_display_to_third_hex
+
+    CMP V1, #4
+    LDREQ V3, value5
+    BEQ end_display_to_third_hex
+
+    CMP V1, #5
+    LDREQ V3, value4
+    BEQ end_display_to_third_hex
+
+    CMP V1, #6
+    LDREQ V3, value3
+    BEQ end_display_to_third_hex
+
     CMP V1, #7
-    LDREQ V3, value9
+    LDREQ V3, value2
     BEQ end_display_to_third_hex
 
     CMP V1, #8
-    LDREQ V3, value10
-    BEQ end_display_to_third_hex
-
-    CMP V1, #9
     LDREQ V3, value1
     BEQ end_display_to_third_hex
 
+    CMP V1, #9
+    LDREQ V3, value10
+    BEQ end_display_to_third_hex
+
     CMP V1, #10
-    LDREQ V3, value2
+    LDREQ V3, value9
     BEQ end_display_to_third_hex
 
 
@@ -858,43 +1177,43 @@ display_to_fourth_hex:
     LDR V2, =currentCount
 
     CMP V1, #1 
-    LDREQ V3, value4
-    BEQ end_display_to_fourth_hex
-
-    CMP V1, #2
-    LDREQ V3, value5
-    BEQ end_display_to_fourth_hex
-    
-    CMP V1, #3
-    LDREQ V3, value6
-    BEQ end_display_to_fourth_hex
-
-    CMP V1, #4
     LDREQ V3, value7
     BEQ end_display_to_fourth_hex
 
+    CMP V1, #2
+    LDREQ V3, value6
+    BEQ end_display_to_fourth_hex
+    
+    CMP V1, #3
+    LDREQ V3, value5
+    BEQ end_display_to_fourth_hex
+
+    CMP V1, #4
+    LDREQ V3, value4
+    BEQ end_display_to_fourth_hex
+
     CMP V1, #5
-    LDREQ V3, value8
+    LDREQ V3, value3
     BEQ end_display_to_fourth_hex
 
     CMP V1, #6
-    LDREQ V3, value9
-    BEQ end_display_to_fourth_hex
-
-    CMP V1, #7
-    LDREQ V3, value10
-    BEQ end_display_to_fourth_hex
-
-    CMP V1, #8
-    LDREQ V3, value1
-    BEQ end_display_to_fourth_hex
-
-    CMP V1, #9
     LDREQ V3, value2
     BEQ end_display_to_fourth_hex
 
+    CMP V1, #7
+    LDREQ V3, value1
+    BEQ end_display_to_fourth_hex
+
+    CMP V1, #8
+    LDREQ V3, value10
+    BEQ end_display_to_fourth_hex
+
+    CMP V1, #9
+    LDREQ V3, value9
+    BEQ end_display_to_fourth_hex
+
     CMP V1, #10
-    LDREQ V3, value3
+    LDREQ V3, value8
     BEQ end_display_to_fourth_hex
 
 
@@ -910,43 +1229,43 @@ display_to_fifth_hex:
     LDR V2, =currentCount
 
     CMP V1, #1 
-    LDREQ V3, value5
+    LDREQ V3, value6
     BEQ end_display_to_fifth_hex
 
     CMP V1, #2
-    LDREQ V3, value6
+    LDREQ V3, value5
     BEQ end_display_to_fifth_hex
     
     CMP V1, #3
-    LDREQ V3, value7
+    LDREQ V3, value4
     BEQ end_display_to_fifth_hex
 
     CMP V1, #4
-    LDREQ V3, value8
-    BEQ end_display_to_fifth_hex
-
-    CMP V1, #5
-    LDREQ V3, value9
-    BEQ end_display_to_fifth_hex
-
-    CMP V1, #6
-    LDREQ V3, value10
-    BEQ end_display_to_fifth_hex
-
-    CMP V1, #7
-    LDREQ V3, value1
-    BEQ end_display_to_fifth_hex
-
-    CMP V1, #8
-    LDREQ V3, value2
-    BEQ end_display_to_fifth_hex
-
-    CMP V1, #9
     LDREQ V3, value3
     BEQ end_display_to_fifth_hex
 
+    CMP V1, #5
+    LDREQ V3, value2
+    BEQ end_display_to_fifth_hex
+
+    CMP V1, #6
+    LDREQ V3, value1
+    BEQ end_display_to_fifth_hex
+
+    CMP V1, #7
+    LDREQ V3, value10
+    BEQ end_display_to_fifth_hex
+
+    CMP V1, #8
+    LDREQ V3, value9
+    BEQ end_display_to_fifth_hex
+
+    CMP V1, #9
+    LDREQ V3, value8
+    BEQ end_display_to_fifth_hex
+
     CMP V1, #10
-    LDREQ V3, value4
+    LDREQ V3, value7
     BEQ end_display_to_fifth_hex
 
 
@@ -962,43 +1281,43 @@ display_to_sixth_hex:
     LDR V2, =currentCount
 
     CMP V1, #1 
-    LDREQ V3, valu6
+    LDREQ V3, value5
     BEQ end_display_to_sixth_hex
 
     CMP V1, #2
-    LDREQ V3, value7
+    LDREQ V3, value4
     BEQ end_display_to_sixth_hex
     
     CMP V1, #3
-    LDREQ V3, value8
-    BEQ end_display_to_sixth_hex
-
-    CMP V1, #4
-    LDREQ V3, value9
-    BEQ end_display_to_sixth_hex
-
-    CMP V1, #5
-    LDREQ V3, value10
-    BEQ end_display_to_sixth_hex
-
-    CMP V1, #6
-    LDREQ V3, value1
-    BEQ end_display_to_sixth_hex
-
-    CMP V1, #7
-    LDREQ V3, value2
-    BEQ end_display_to_sixth_hex
-
-    CMP V1, #8
     LDREQ V3, value3
     BEQ end_display_to_sixth_hex
 
+    CMP V1, #4
+    LDREQ V3, value2
+    BEQ end_display_to_sixth_hex
+
+    CMP V1, #5
+    LDREQ V3, value1
+    BEQ end_display_to_sixth_hex
+
+    CMP V1, #6
+    LDREQ V3, value10
+    BEQ end_display_to_sixth_hex
+
+    CMP V1, #7
+    LDREQ V3, value9
+    BEQ end_display_to_sixth_hex
+
+    CMP V1, #8
+    LDREQ V3, value8
+    BEQ end_display_to_sixth_hex
+
     CMP V1, #9
-    LDREQ V3, value4
+    LDREQ V3, value7
     BEQ end_display_to_sixth_hex
 
     CMP V1, #10
-    LDREQ V3, value5
+    LDREQ V3, value6
     BEQ end_display_to_sixth_hex
 
 
@@ -1008,3 +1327,28 @@ display_to_sixth_hex:
         POP {V1-V4, LR}
         BX LR
 
+display_to_HEX:
+    PUSH {V1-V4, LR}
+
+    LDR V1, order 
+    LDR V2, =order
+    CMP V1, #1
+    BNE reverse_order
+
+    BL display_to_first_hex
+    BL display_to_second_hex
+    BL display_to_third_hex
+    BL display_to_fourth_hex
+    BL display_to_fifth_hex
+    BL display_to_sixth_hex
+    B end_display_to_HEX
+    reverse_order:
+        BL r_display_to_first_hex
+        BL r_display_to_second_hex
+        BL r_display_to_third_hex
+        BL r_display_to_fourth_hex
+        BL r_display_to_fifth_hex
+        BL r_display_to_sixth_hex
+    end_display_to_HEX:
+        POP {V1-V4,LR}
+        BX LR
