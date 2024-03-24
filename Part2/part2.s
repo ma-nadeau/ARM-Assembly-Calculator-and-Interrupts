@@ -313,8 +313,34 @@ END_KEY_ISR:
 	
     BX LR
 
+reverse_order_display:
 
-	
+    PUSH {V1-V8,LR}
+    LDR V1, order
+    LDR V2, =order
+    LDR V3, currentCount
+    LDR V4, =currentCount
+    MOV V5, #1
+    MOV V6, #10
+
+    CMP V1, #1 
+    BNE reversing
+
+    CMP V3, #10 
+    STREQ V5, [V4]
+    ADDNE V3, V3, V5
+    STRNE V3, [V4]
+    B end_reverse_order
+    
+    reversing: 
+    CMP V3, #1 
+    STREQ V6, [V4]
+    SUBNE V3, V3, V5
+    STRNE V3, [V4]
+
+    end_reverse_order:
+        POP {V1-V8,LR} 
+        BX LR
 
 ARM_TIM_ISR:
     PUSH {V1-V8,LR}
@@ -325,14 +351,15 @@ ARM_TIM_ISR:
 
     BL ARM_TIM_clear_INT_ASM
 
-    LDR V3, currentCount
-    LDR V4, =currentCount
-    MOV V5, #1
-    CMP V3, #10 
-    STREQ V5, [V4]
-    ADDNE V3, V3, V5
-    STRNE V3, [V4]
-
+    //LDR V3, currentCount
+    //LDR V4, =currentCount
+    //MOV V5, #1
+     
+    //CMP V3, #10 
+    //STREQ V5, [V4]
+    //ADDNE V3, V3, V5
+    //STRNE V3, [V4]
+    BL reverse_order_display
     
 
     POP {V1-V8,LR}
@@ -1333,7 +1360,7 @@ display_to_HEX:
     LDR V1, order 
     LDR V2, =order
     CMP V1, #1
-    BNE reverse_order
+    //BNE reverse_order
 
     BL display_to_first_hex
     BL display_to_second_hex
@@ -1342,13 +1369,13 @@ display_to_HEX:
     BL display_to_fifth_hex
     BL display_to_sixth_hex
     B end_display_to_HEX
-    reverse_order:
-        BL r_display_to_first_hex
-        BL r_display_to_second_hex
-        BL r_display_to_third_hex
-        BL r_display_to_fourth_hex
-        BL r_display_to_fifth_hex
-        BL r_display_to_sixth_hex
+    //reverse_order:
+    //    BL r_display_to_first_hex
+    //    BL r_display_to_second_hex
+    //    BL r_display_to_third_hex
+    //    BL r_display_to_fourth_hex
+    //    BL r_display_to_fifth_hex
+    //    BL r_display_to_sixth_hex
     end_display_to_HEX:
         POP {V1-V4,LR}
         BX LR
