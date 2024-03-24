@@ -53,6 +53,17 @@ PB_int_flag: .word 0x0
 
 tim_int_flag: .word 0x0
 
+value1: .space 4
+value2: .space 4
+value3: .space 4
+value4: .space 4
+value5: .space 4
+value6: .space 4
+value7: .space 4
+value8: .space 4
+value9: .space 4
+value10: .space 4
+
 
 // Inputs: Push button index (PB0 -> A1 = 0; PB1 -> A1 = 1; ..., PB3 -> A1 = 3)
 // It enables the interrupt function for the corresponding pushbuttons by 
@@ -411,9 +422,6 @@ setupLED:
         BX LR
         
 
-
-
-
 // A1 <- Initial Count Value
 // A2 <- Configuration Bit 
 ConfigureTimer:
@@ -485,9 +493,6 @@ Pause:
     LDR V3, previousSpeed
     LDR V4, =previousSpeed
 
-	
-	
-
     MOV V5, #0
 
     LDR V6, =countingDown
@@ -550,83 +555,130 @@ getValues:
     LDR V6, =List2
     LDR V7, =my_list 
      
-	
+	LDR V8, =value1
+
     AND V3, V2, #1          // Extract the lower 1 bits and store them in V3
     CMP V3, #1             
     LDREQ V4, [V5]
     STREQB V4, [V7]
+    STREQ V4, [V8]
     LDRNE V4, [V6]
     STRNEB V4, [V7]
+    STRNE V4, [V8]
+
+    LDR V8, =value2
 
     AND V3, V2, #2                  // Extract the lower 1 bits and store them in V3
 	CMP V3, #2 
 	LDREQ V4, [V5, #4]
     STREQB V4, [V7, #1]
+    STREQ V4, [V8]
     LDRNE V4, [V6, #4]
     STRNEB V4, [V7, #1]
+    STRNE V4, [V8]
+
+    LDR V8, =value3
 
     AND V3, V2, #4                   // Extract the lower 1 bits and store them in V3
 	CMP V3, #4 
 	LDREQ V4, [V5, #8]
     STREQB V4, [V7, #2]
+    STREQ V4, [V8]
     LDRNE V4, [V6, #8]
     STRNEB V4, [V7, #2]
+    STRNE V4, [V8]
+
+    LDR V8, =value4
 
     AND V3, V2, #8                  // Extract the lower 1 bits and store them in V3
 	CMP V3, #8 
 	LDREQ V4, [V5, #12]
     STREQB V4, [V7, #3]
+    STREQ V4, [V8]
     LDRNE V4, [V6, #12]
     STRNEB V4, [V7, #3]
+    STRNE V4, [V8]
+
+    LDR V8, =value5
 
     AND V3, V2, #16                  // Extract the lower 1 bits and store them in V3
 	CMP V3, #16 
 	LDREQ V4, [V5, #16]
     STREQB V4, [V7, #4]
+    STREQ V4, [V8]
     LDRNE V4, [V6, #16]
     STRNEB V4, [V7, #4]
+    STRNE V4, [V8]
+
+    LDR V8, =value6
 
     AND V3, V2, #32                   // Extract the lower 1 bits and store them in V3
 	CMP V3, #32 
 	LDREQ V4, [V5, #20]
     STREQB V4, [V7, #5]
+    STREQ V4, [V8]
     LDRNE V4, [V6, #20]
     STRNEB V4, [V7, #5]
+    STRNE V4, [V8]
+
+    LDR V8, =value6
 
     AND V3, V2, #64                   // Extract the lower 1 bits and store them in V3
 	CMP V3, #64 
 	LDREQ V4, [V5, #24]
     STREQB V4, [V7, #6]
+    STREQ V4, [V8]
     LDRNE V4, [V6, #24]
     STRNEB V4, [V7, #6]
+    STRNE V4, [V8]
+
+    LDR V8, =value7
 
     AND V3, V2, #128                   // Extract the lower 1 bits and store them in V3
 	CMP V3, #128 
 	LDREQ V4, [V5, #28]
     STREQB V4, [V7, #7]
+    STREQ V4, [V8]
     LDRNE V4, [V6, #28]
     STRNEB V4, [V7, #7]
+    STRNE V4, [V8]
+    
+    LDR V8, =value8
 
     AND V3, V2, #256                   // Extract the lower 1 bits and store them in V3
 	CMP V3, #256 
 	LDREQ V4, [V5, #32]
     STREQB V4, [V7, #8]
+    STREQ V4, [V8]
     LDRNE V4, [V6, #32]
     STRNEB V4, [V7, #8]
+    STRNE V4, [V8]
+
+    LDR V8, =value9
 
     AND V3, V2, #512                   // Extract the lower 1 bits and store them in V3
 	CMP V3, #512 
 	LDREQ V4, [V5, #36]
     STREQB V4, [V7, #9]
+    STREQ V4, [V8]
     LDRNE V4, [V6, #36]
     STRNEB V4, [V7, #9]
+    STRNE V4, [V8]
+
+    LDR V8, =value10
 
     AND V3, V2, #1024                   // Extract the lower 1 bits and store them in V3
 	CMP V3, #1024 
 	LDREQ V4, [V5, #40]
     STREQB V4, [V7, #10]
+    STREQ V4, [V8]
     LDRNE V4, [V6, #40]
     STRNEB V4, [V7, #10]
+    STRNE V4, [V8]
 
     POP {V1-V8, LR}                     // Restaure values of V1-V2 and LR 
     BX LR                               // Return 
+
+display_to_hex:
+
+
