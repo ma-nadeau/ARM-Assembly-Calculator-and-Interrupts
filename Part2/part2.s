@@ -119,14 +119,70 @@ _start:
 
 
 IDLE:
-    PUSH {V1-V2, LR}
+    PUSH {V1-V5, LR}
 	BL getValues
 	BL setupLED
    	BL display_to_HEX
-    POP {V1-V2, LR}
+    LDR V1, countingDown
+    LDR R1, PB_int_flag
+
+    MOV R2, #0x1
+    CMP R1, R2
+    BLEQ C_KEY0
+
+    MOV R2, #0x2
+    CMP R1, R2
+    BLEQ C_KEY1
+
+    MOV R2, #0x4
+    CMP R1, R2
+    BLEQ C_KEY2
+
+    MOV R2, #0x8
+    CMP R1, R2
+    BLEQ C_KEY3
+	
+	LDR V3, =PB_int_flag   // address of flag
+	MOV V4, #0
+	STR V3, [V3]
+    POP {V1-V5, LR}
     B IDLE // This is where you write your main program task(s)
 
 
+    C_KEY0:
+        PUSH {LR}
+
+        BL decrease_Speed       // when KEY0 is pressed, decrease the speed by 1 (augment load value count)
+        POP {LR}
+        BX LR
+
+    C_KEY1:
+       
+        PUSH {LR}
+        BL increase_Speed      // when KEY1 is pressed, increase the speed by 1  (decrease load valye count)
+        POP {LR}
+        BX LR
+
+    C_KEY2:
+        PUSH {V1-V8,LR}
+    
+        LDR V1, order          
+        LDR V2, =order
+        MOV V3, #0           
+        MOV V4, #1
+        // toggles between order 1 or order 0
+        CMP V1, #1             
+        STRNE V4, [V2]         // if order is not set to 1 (default), set it to 1
+        STREQ V3, [V2]         // otherwise, set it to 0
+
+        POP {V1-V8,LR}
+        BX LR
+
+    C_KEY3:
+	    PUSH {LR}
+	    BL Pause                // Pauses when key 3 is pressed
+        POP {LR}
+        BX LR
 
 
 CONFIG_GIC:
@@ -261,48 +317,6 @@ KEY_ISR:
     MOV R2, #0xF
     STR R2, [R0, #0xC]     // clear the interrupt
 
-
-CHECK_KEY0:
-    MOV R3, #0x1
-    ANDS R3, R3, R1        // check for KEY0
-    BEQ CHECK_KEY1
- 
-    BL decrease_Speed       // when KEY0 is pressed, decrease the speed by 1 (augment load value count)
-    
-
-    B END_KEY_ISR
-CHECK_KEY1:
-    MOV R3, #0x2
-    ANDS R3, R3, R1        // check for KEY1
-    BEQ CHECK_KEY2
-    
-    BL increase_Speed      // when KEY1 is pressed, increase the speed by 1  (decrease load valye count)
-
-    B END_KEY_ISR
-CHECK_KEY2:
-    MOV R3, #0x4
-    ANDS R3, R3, R1        // check for KEY2
-    BEQ IS_KEY3
-    
-    LDR V1, order          
-    LDR V2, =order
-    MOV V3, #0           
-    MOV V4, #1
-    // toggles between order 1 or order 0
-    CMP V1, #1             
-    STRNE V4, [V2]         // if order is not set to 1 (default), set it to 1
-    STREQ V3, [V2]         // otherwise, set it to 0
-
-    
-    B END_KEY_ISR
-IS_KEY3:
-	MOV R3, #0x8
-    ANDS R3, R3, R1        // check for KEY3
-    BEQ END_KEY_ISR
-	BL Pause                // Pauses when key 3 is pressed
-	
-END_KEY_ISR:
-	
     POP {V1-V5, LR}
     BX LR
 
